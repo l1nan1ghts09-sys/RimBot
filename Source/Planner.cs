@@ -16,6 +16,8 @@ namespace RimWorldBot.TradeEmpire
         public static Dictionary<ThingDef, int> IngredientWanted = new Dictionary<ThingDef, int>();
         private static readonly string[] Protected = { "Silver", "Gold", "Plasteel", "Uranium", "Jade" };
 
+        public static void ResetRuntime() { IngredientWanted.Clear(); }
+
         public class Scored
         {
             public RecipeDef recipe; public float density; public float unitValue; public ThingDef product;
@@ -102,10 +104,13 @@ namespace RimWorldBot.TradeEmpire
             float revenue = unit * qualityMul * outCount;
             float profit = revenue - ingValue;
             if (profit <= 0f) return null;
-            float work = Math.Max(1f, r.WorkAmountTotal(stuff));
+            float work = Math.Max(1f, r.workAmount > 0f ? r.workAmount : 100f);
+            // спрос из фактических продаж: то, что реально покупают, выгоднее производить
+            float demand = Ledger.Demand(p.defName);
+            float demandMul = 1f + Mathf.Clamp01(demand / 30f) * 0.8f;
             return new Scored
             {
-                recipe = r, product = p, unitValue = unit * qualityMul, density = profit / work * 1000f,
+                recipe = r, product = p, unitValue = unit * qualityMul, density = profit / work * 1000f * demandMul,
                 feasible = feasible, ingredient = mainIng, ingredientPerUnit = mainPerUnit
             };
         }
@@ -120,7 +125,8 @@ namespace RimWorldBot.TradeEmpire
             {
                 if (made >= s.recipesPerTable) break;
                 made++;
-                int tc = Mathf.Clamp((int)(s.stockTargetValue / Math.Max(1f, sc.unitValue)), 2, 60);
+                float demand = Ledger.Demand(sc.product.defName);
+                int tc = Mathf.Clamp((int)(s.stockTargetValue / Math.Max(1f, sc.unitValue) * (1f + Mathf.Clamp01(demand / 30f))), 2, 80);
 
                 // что докупать/не продавать
                 if (sc.ingredient != null)

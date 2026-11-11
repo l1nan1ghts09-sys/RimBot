@@ -13,6 +13,8 @@ namespace RimWorldBot.TradeEmpire
         private static readonly Dictionary<string, int> cd = new Dictionary<string, int>();
         private static int lastParty = -999999;
 
+        public static void ResetRuntime() { cd.Clear(); lastParty = -999999; }
+
         private static bool Ready(string k, int ticks)
         {
             int now = Find.TickManager.TicksGame, last;
@@ -68,7 +70,7 @@ namespace RimWorldBot.TradeEmpire
 
         private static void Place(Map map, string[] words, List<Pawn> cols, string what, int need)
         {
-            ThingDef d = CheapestFixture(map, words);
+            ThingDef d = CheapestFixture(words, map);
             if (d == null) { Mind.Think("гигиена", "Нужно " + need + " " + what + ", но нужное исследование ещё не открыто."); return; }
             if (NeedsPlumbing(d)) { Mind.Think("гигиена", "Доступен только «" + d.label + "» с водопроводом — автоматически не строю, нужна ручная сантехника."); return; }
             if (map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).Any(t => t.def.entityDefToBuild == d)) return;

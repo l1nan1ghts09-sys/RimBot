@@ -7,7 +7,7 @@ using Verse;
 
 namespace RimWorldBot.TradeEmpire
 {
-    /// <summary>Мысли бота: лента решений + оценка «что сейчас важнее всего» с объяснениями.</summary>
+    /// <summary>Мысли бота: лента решений и понятная сводка «что сейчас важнее всего и почему».</summary>
     public static class Mind
     {
         public class Thought { public int tick; public string cat, text; }
@@ -16,7 +16,9 @@ namespace RimWorldBot.TradeEmpire
         public static readonly List<Thought> Log = new List<Thought>();
         public static List<Concern> Concerns = new List<Concern>();
         public static string Headline = "";
+        public static string Why = "";
         private static float pausedSince = -1f;
+        private static int lastAssessTick = -1;
 
         public static void Think(string cat, string text)
         {
@@ -24,69 +26,66 @@ namespace RimWorldBot.TradeEmpire
             try { if (Find.TickManager != null) tick = Find.TickManager.TicksGame; } catch { }
             if (Log.Count > 0 && Log[Log.Count - 1].text == text) return;
             Log.Add(new Thought { tick = tick, cat = cat, text = text });
-            if (Log.Count > 400) Log.RemoveRange(0, 100);
+            if (Log.Count > 500) Log.RemoveRange(0, 100);
         }
 
-        public static void Assess(Map map)
+        /// <summary>Сводка по миру: без тяжёлых повторных расчётов — берём уже собранную картину.</summary>
+        public static void Assess(ColonyWorld w)
         {
-            var cols = map.mapPawns.FreeColonistsSpawned.ToList();
-            var list = new List<Concern>();
-            if (cols.Count == 0) { Concerns = list; return; }
+            if (w == null) return;
+            if (w.tick == lastAssessTick) return;
+            lastAssessTick = w.tick;
 
-            // Еда
-            float nut = 0;
-            foreach (ThingDef d in DefDatabase<ThingDef>.AllDefsListForReading)
-                if (d.IsNutritionGivingIngestible && !d.IsDrug && d.category == ThingCategory.Item)
-                    nut += T.Count(map, d) * d.GetStatValueAbstract(StatDefOf.Nutrition);
-            float days = nut / Math.Max(1f, cols.Count * 2.6f);
-            list.Add(new Concern { name = "Еда", severity = Mathf.Clamp01(1f - days / 8f), why = "запас на " + days.ToString("0.0") + " дн.",
-                doing = days < 3 ? "дикие растения, охота, срочные грядки" : "поддерживаю запас" });
-
-            // Угроза
-            bool threat = GenHostility.AnyHostileActiveThreatToPlayer(map);
-            list.Add(new Concern { name = "Угроза", severity = threat ? 1f : 0.05f, why = threat ? "враги на карте" : "спокойно",
-                doing = threat ? "призыв защитников, отступление раненых, турели/укрытия" : "укрепления, ловушки" });
-
-            // Здоровье
-            int downed = cols.Count(p => p.Downed);
-            int bleeding = cols.Count(p => p.health.hediffSet.BleedRateTotal > 0.1f);
-            list.Add(new Concern { name = "Здоровье", severity = Mathf.Clamp01((downed * 0.4f + bleeding * 0.3f) / Math.Max(1, cols.Count) * 2f),
-                why = "упавших " + downed + ", кровотечений " + bleeding, doing = downed + bleeding > 0 ? "врач + лечение" : "в норме" });
-
-            // Настроение / отдых / гигиена
-            float mood = Avg(cols, p => p.needs != null && p.needs.mood != null ? p.needs.mood.CurLevelPercentage : 0.6f);
-            list.Add(new Concern { name = "Настроение", severity = Mathf.Clamp01((0.6f - mood) * 3f), why = "среднее " + (int)(mood * 100) + "%",
-                doing = mood < 0.4f ? "отдых/радость, вечеринка" : "в норме" });
-            float rest = Min(cols, p => p.needs != null && p.needs.rest != null ? p.needs.rest.CurLevelPercentage : 1f);
-            list.Add(new Concern { name = "Усталость", severity = Mathf.Clamp01((0.25f - rest) * 4f), why = "минимум " + (int)(rest * 100) + "%", doing = rest < 0.25f ? "принудительный сон" : "в норме" });
-            NeedDef hyg = DefDatabase<NeedDef>.GetNamedSilentFail("Hygiene");
-            if (hyg != null)
-            {
-                float h = Min(cols, p => { var n = p.needs?.TryGetNeed(hyg); return n != null ? n.CurLevelPercentage : 1f; });
-                list.Add(new Concern { name = "Гигиена", severity = Mathf.Clamp01((0.3f - h) * 3f), why = "минимум " + (int)(h * 100) + "%", doing = h < 0.3f ? "строю умывальники/туалеты" : "в норме" });
-            }
-
-            // Погода
-            float temp = map.mapTemperature.OutdoorTemp;
-            list.Add(new Concern { name = "Погода", severity = Mathf.Clamp01(Math.Max(-temp - 5f, temp - 38f) / 20f), why = temp.ToString("0") + "°C",
-                doing = temp < -5 ? "костёр, тёплая одежда" : temp > 38 ? "работа в помещениях" : "комфортно" });
-
-            // События
-            foreach (GameCondition gc in map.gameConditionManager.ActiveConditions)
-                list.Add(new Concern { name = "Событие", severity = 0.6f, why = gc.def.LabelCap, doing = gc.def == GameConditionDefOf.ToxicFallout ? "все в укрытие" : "наблюдаю" });
+            List<Concern> list = new List<Concern>();
+            list.Add(new Concern { name = "Еда", severity = U.Clamp01(1f - w.foodDays / Mathf.Max(4f, w.foodTargetDays)),
+                why = "запас " + U.F(w.foodDays) + " дн. (с урожаем " + U.F(w.foodDaysWithCrops) + "), тренд " + U.Sign(w.foodTrend) + "/дн.",
+                doing = w.foodDays < 3f ? "дикая еда, охота, запрет продажи" : "грядки, готовка, запас" });
+            list.Add(new Concern { name = "Угроза", severity = w.threat
+                    ? (w.hostilesNear > 0 ? U.Clamp01(0.5f + w.threatRatio * 0.5f) : U.Clamp01(0.22f + w.threatRatio * 0.25f))
+                    : U.Clamp01(w.baseRisk * 0.6f),
+                why = w.threat ? (w.hostiles + " врагов, сила " + U.Pct(w.threatRatio) + " от нашей") : ("риск рейда " + U.Pct(w.baseRisk)),
+                doing = w.threat ? "защитники, укрытия, отступление слабых" : "турели, ловушки, подготовка" });
+            list.Add(new Concern { name = "Здоровье", severity = U.Clamp01(w.healthUrgency),
+                why = "лежачих " + w.downed + ", кровотечений " + w.bleeding + ", нужен врач " + w.needsTend,
+                doing = w.downed + w.bleeding > 0 ? "врач, лекарства, отдых" : "в норме" });
+            list.Add(new Concern { name = "Настроение", severity = U.Clamp01(w.moodUrgency),
+                why = "среднее " + U.Pct(w.moodAvg) + ", срывов " + w.mental, doing = w.moodAvg < 0.45f ? "отдых, радость, вечеринка" : "в норме" });
+            list.Add(new Concern { name = "Отдых", severity = U.Clamp01((0.3f - w.restMin) * 3f),
+                why = "минимум " + U.Pct(w.restMin) + ", вымотаны " + w.exhausted, doing = w.restMin < 0.3f ? "сон по расписанию" : "в норме" });
+            list.Add(new Concern { name = "Температура", severity = U.Clamp01(Mathf.Max(0f, Mathf.Abs(w.outdoorTemp - 21f) - 18f) / 20f + w.hypothermia * 0.3f),
+                why = w.outdoorTemp.ToString("0") + "°C" + (w.hypothermia > 0 ? ", переохлаждение " + w.hypothermia : ""),
+                doing = w.outdoorTemp < -2f ? "костёр, тёплая одежда" : w.outdoorTemp > 36f ? "работа в тени" : "комфортно" });
+            list.Add(new Concern { name = "Энергия", severity = U.Clamp01(w.powerDeficit / Mathf.Max(200f, w.powerDemand * 0.5f)),
+                why = (int)w.powerCapacity + "/" + (int)w.powerDemand + " Вт, дефицит " + (int)w.powerDeficit,
+                doing = w.powerDeficit > 0 ? "один генератор, провода" : "в норме" });
+            list.Add(new Concern { name = "Развитие", severity = U.Clamp01(0.55f - w.opportunity * 0.4f),
+                why = "богатство " + (int)w.wealth + " (" + U.Sign(w.wealthTrend) + "/дн.), верстаков " + w.tables + ", заданий " + w.bills,
+                doing = "прибыльные задания, торговля, наука" });
+            foreach (string cond in w.conditions)
+                list.Add(new Concern { name = "Событие", severity = 0.55f, why = cond, doing = cond.Contains("Токсич") || cond.Contains("Toxic") ? "все в укрытие" : "наблюдаю" });
 
             Concerns = list.OrderByDescending(c => c.severity).ToList();
-            var top = Concerns.FirstOrDefault();
-            Headline = top != null && top.severity > 0.15f ? "Главная забота: " + top.name + " — " + top.why + " → " + top.doing : "Всё стабильно: развиваюсь (торговля, постройки, исследования).";
+            Concern top = Concerns.FirstOrDefault();
+            Headline = top != null && top.severity > 0.18f
+                ? "Главная забота: " + top.name + " — " + top.why + " → " + top.doing
+                : "Всё стабильно: развиваю экономику, науку и запас на будущее.";
+            Why = w.Brief();
+            BrainComponent brain = BrainComponent.Get();
+            if (brain != null && brain.Current != null && brain.Current.utility > 0.25f)
+                Headline = "Цель «" + brain.Current.name + "»: " + brain.Current.why;
         }
 
-        private static float Avg(List<Pawn> l, Func<Pawn, float> f) { return l.Count == 0 ? 0f : l.Average(f); }
-        private static float Min(List<Pawn> l, Func<Pawn, float> f) { return l.Count == 0 ? 1f : l.Min(f); }
+        /// <summary>Совместимость со старым кодом, который передавал карту.</summary>
+        public static void Assess(Map map)
+        {
+            if (map == null) return;
+            Assess(ColonyWorld.Build(map, null));
+        }
 
         // ---------- GUI ----------
         public static void OnGUI()
         {
-            var s = TradeEmpireMod.S;
+            TradeSettings s = TradeEmpireMod.S;
             if (s == null || Current.ProgramState != ProgramState.Playing) return;
 
             // Автоснятие паузы (GameComponentTick при паузе не идёт, поэтому здесь)
@@ -95,8 +94,9 @@ namespace RimWorldBot.TradeEmpire
                 if (pausedSince < 0) pausedSince = Time.realtimeSinceStartup;
                 else if (Time.realtimeSinceStartup - pausedSince > 3f)
                 {
-                    Find.TickManager.CurTimeSpeed = TimeSpeed.Fast; pausedSince = -1f;
-                    Think("пауза", "Игра стояла на паузе — продолжаю (можно отключить в настройках/панели).");
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Fast;
+                    pausedSince = -1f;
+                    Think("пауза", "Игра стояла на паузе — продолжаю (можно отключить в настройках).");
                 }
             }
             else pausedSince = -1f;
@@ -106,94 +106,35 @@ namespace RimWorldBot.TradeEmpire
             Event e = Event.current;
             if (e != null && e.type == EventType.KeyDown && e.control && e.keyCode == KeyCode.T) { Toggle(); e.Use(); }
 
-            if (s.showHud && Find.CurrentMap != null && !WorldRendererUtility.WorldRenderedNow && Find.WindowStack.WindowOfType<ThoughtsWindow>() == null)
-                if (Widgets.ButtonText(new Rect(UI.screenWidth - 150f, UI.screenHeight - 180f, 140f, 28f), "Мысли бота"))
+            if (s.showHud && Find.CurrentMap != null && Find.WindowStack.WindowOfType<BrainWindow>() == null)
+            {
+                if (Widgets.ButtonText(new Rect(UI.screenWidth - 150f, UI.screenHeight - 180f, 140f, 28f), "Мозг бота"))
                     Toggle();
+            }
         }
 
         public static void Toggle()
         {
-            var w = Find.WindowStack.WindowOfType<ThoughtsWindow>();
-            if (w != null) w.Close(); else Find.WindowStack.Add(new ThoughtsWindow());
-        }
-    }
-
-    public class ThoughtsWindow : Window
-    {
-        private Vector2 scroll;
-        private string filter = "";
-        private static readonly string[] Cats = { "", "решение", "действие", "событие", "гигиена", "идеология", "пауза", "квест", "время", "энергия", "работа", "зависание" };
-
-        public ThoughtsWindow()
-        {
-            draggable = true; resizeable = true; doCloseX = true; preventCameraMotion = false;
-            absorbInputAroundWindow = false; closeOnClickedOutside = false; forcePause = false;
+            BrainWindow w = Find.WindowStack.WindowOfType<BrainWindow>();
+            if (w != null) w.Close();
+            else Find.WindowStack.Add(new BrainWindow());
         }
 
-        public override Vector2 InitialSize { get { return new Vector2(560f, 640f); } }
-
-        public override void DoWindowContents(Rect inRect)
+        public static void ResetRuntime()
         {
-            var s = TradeEmpireMod.S;
-            float y = 0f;
-            Text.Font = GameFont.Medium;
-            Widgets.Label(new Rect(0, y, inRect.width, 30f), "Мысли бота"); y += 30f;
-            Text.Font = GameFont.Small;
-
-            Widgets.Label(new Rect(0, y, inRect.width, 44f), Mind.Headline); y += 46f;
-
-            // Заботы
-            foreach (Mind.Concern c in Mind.Concerns.Take(8))
-            {
-                var bar = new Rect(0, y, 90f, 16f);
-                Widgets.DrawBox(bar);
-                GUI.color = Color.Lerp(Color.green, Color.red, c.severity);
-                GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * c.severity, bar.height), BaseContent.WhiteTex);
-                GUI.color = Color.white;
-                Widgets.Label(new Rect(96f, y - 2f, inRect.width - 96f, 22f), c.name + ": " + c.why + " → " + c.doing);
-                y += 20f;
-            }
-            y += 4f;
-            Widgets.Label(new Rect(0, y, inRect.width, 22f), Learning()); y += 22f;
-            Widgets.Label(new Rect(0, y, inRect.width, 22f), Ledger.Summary()); y += 26f;
-
-            // Переключатели
-            Widgets.CheckboxLabeled(new Rect(0, y, inRect.width / 2f, 24f), "Авто-запуск при паузе", ref s.keepRunning);
-            Widgets.CheckboxLabeled(new Rect(inRect.width / 2f, y, inRect.width / 2f, 24f), "Самообучение", ref s.learning); y += 26f;
-            Widgets.CheckboxLabeled(new Rect(0, y, inRect.width / 2f, 24f), "Торговая империя", ref s.orbitalTrade);
-            Widgets.CheckboxLabeled(new Rect(inRect.width / 2f, y, inRect.width / 2f, 24f), "Мозг (кризисы/события)", ref s.brain); y += 28f;
-
-            if (Widgets.ButtonText(new Rect(0, y, 150f, 24f), "Фильтр: " + (filter == "" ? "все" : filter)))
-            {
-                int i = Array.IndexOf(Cats, filter); filter = Cats[(i + 1) % Cats.Length];
-            }
-            y += 28f;
-
-            var outRect = new Rect(0, y, inRect.width, inRect.height - y);
-            var items = Mind.Log.Where(t => filter == "" || t.cat == filter).Reverse().Take(150).ToList();
-            var view = new Rect(0, 0, outRect.width - 18f, items.Count * 44f);
-            Widgets.BeginScrollView(outRect, ref scroll, view);
-            float yy = 0f;
-            foreach (Mind.Thought t in items)
-            {
-                string head = "[д" + (t.tick / 60000) + " " + ((t.tick % 60000) / 2500) + "ч] " + t.cat + ": ";
-                float h = Text.CalcHeight(head + t.text, view.width);
-                Widgets.Label(new Rect(0, yy, view.width, h), head + t.text);
-                yy += h + 2f;
-            }
-            Widgets.EndScrollView();
+            Log.Clear();
+            Concerns.Clear();
+            Headline = "";
+            Why = "";
+            lastAssessTick = -1;
+            pausedSince = -1f;
         }
 
-        private static string Learning()
+        public static string LearningLine()
         {
-            try
-            {
-                var s = TradeEmpireMod.S;
-                if (!s.learning) return "Обучение выключено.";
-                int n = Memory.Arms.Values.Sum(a => a.n);
-                return "Обучение: накоплено опытов " + n + " (вариантов " + Memory.Arms.Count + "), файл Config/RimBotBrain.txt";
-            }
-            catch { return "Обучение: —"; }
+            BrainComponent b = BrainComponent.Get();
+            if (b == null) return Learning.Summary();
+            return b.LearningLine();
         }
     }
 }

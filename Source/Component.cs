@@ -16,6 +16,9 @@ namespace RimWorldBot.TradeEmpire
         private int dialogSeenTick = -1;
         private Dictionary<int, int> lastTradedShip = new Dictionary<int, int>();
         private List<int> shipKeys, shipVals;
+        public Dictionary<string, int> soldByDef = new Dictionary<string, int>();
+        private List<string> soldKeys;
+        private List<int> soldVals;
 
         public TradeComponent(Game game) { }
 
@@ -27,6 +30,8 @@ namespace RimWorldBot.TradeEmpire
             Scribe_Values.Look(ref lastDealTick, "lastDealTick");
             Scribe_Collections.Look(ref lastTradedShip, "lastTradedShip", LookMode.Value, LookMode.Value, ref shipKeys, ref shipVals);
             if (lastTradedShip == null) lastTradedShip = new Dictionary<int, int>();
+            Scribe_Collections.Look(ref soldByDef, "soldByDef", LookMode.Value, LookMode.Value, ref soldKeys, ref soldVals);
+            if (soldByDef == null) soldByDef = new Dictionary<string, int>();
         }
 
         public void RecordDeal(float sold, float bought)
@@ -35,12 +40,28 @@ namespace RimWorldBot.TradeEmpire
             lastDealTick = Find.TickManager.TicksGame;
         }
 
+        public void RecordSale(ThingDef def, int count)
+        {
+            if (def == null || count <= 0) return;
+            int cur;
+            soldByDef.TryGetValue(def.defName, out cur);
+            soldByDef[def.defName] = cur + count;
+            if (TradeEmpireMod.S == null || TradeEmpireMod.S.economyLearning) Knowledge.ObserveSale(def.defName, count);
+        }
+
         public override void GameComponentTick()
         {
             var s = TradeEmpireMod.S;
             if (s == null || !s.enabled) return;
             int tick = Find.TickManager.TicksGame;
             if (tick % 30 != 0) return;
+
+            // Чистая ванильная игра: основной бот не установлен — ведём колонию сами.
+            if (Vanilla.Active)
+            {
+                Map home = Find.AnyPlayerHomeMap;
+                if (home != null) T.Safe("Vanilla", () => Vanilla.Run(home, tick));
+            }
 
             // Открытое окно торговли (караван/гость/кем-то открытое): исполняем сделку сами.
             if (s.visitorTrade) T.Safe("OpenDialog", () => AutoTrader.HandleOpenDialog(ref dialogSeenTick));
@@ -73,13 +94,20 @@ namespace RimWorldBot.TradeEmpire
                 var trader = ship as ITrader;
                 if (trader == null || !trader.CanTradeNow) continue;
                 int last;
-                if (lastTradedShip.TryGetValue(ship.loadID, out last) && tick - last < 2500) continue;
+                int shipKey = ShipKey(ship);
+                if (lastTradedShip.TryGetValue(shipKey, out last) && tick - last < 2500) continue;
                 Pawn neg = AutoTrader.BestNegotiator(map);
                 if (neg == null) return;
                 bool done = AutoTrader.TradeWith(trader, neg, map);
-                lastTradedShip[ship.loadID] = tick;
+                lastTradedShip[shipKey] = tick;
                 if (done) return; // одна сделка за проход
             }
+        }
+
+        private static int ShipKey(PassingShip ship)
+        {
+            object id = R.Get(ship, "loadID");
+            return id is int ? (int)id : ship.GetHashCode();
         }
 
         private void VisitorTrade(Map map)

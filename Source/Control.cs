@@ -30,7 +30,7 @@ namespace RimWorldBot.TradeEmpire
         // ---------- диалоги ----------
         private static int Score(DiaOption o)
         {
-            string t = (o.text ?? "").ToLowerInvariant();
+            string t = ((R.Get(o, "text") as string) ?? "").ToLowerInvariant();
             int sc = 0;
             if (o.disabled) return -100;
             foreach (string w in Good) if (t.Contains(w)) sc += 3;
@@ -60,8 +60,13 @@ namespace RimWorldBot.TradeEmpire
             if (pick == null || pick.disabled) { win.Close(true); return; }
             string text = node.text.ToString();
             if (text.Length > 90) text = text.Substring(0, 90) + "…";
-            Mind.Think("событие", "Диалог «" + text.Replace("\n", " ") + "» → выбираю «" + pick.text + "»");
-            pick.Activate();
+            Mind.Think("событие", "Диалог «" + text.Replace("\n", " ") + "» → выбираю «" + (R.Get(pick, "text") as string ?? "?") + "»");
+            try
+            {
+                MethodInfo act = typeof(DiaOption).GetMethod("Activate", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (act != null) act.Invoke(pick, null); else win.Close(true);
+            }
+            catch (Exception e) { Log.Warning("[RimBot] Не удалось нажать вариант диалога: " + e.Message); win.Close(true); }
         }
 
         // ---------- письма ----------

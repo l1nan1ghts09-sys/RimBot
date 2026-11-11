@@ -119,17 +119,13 @@ namespace RimWorldBot.TradeEmpire
             foreach (Line b in chosenBuys) Force(b.tr, -sellSign * b.count);
             deal.UpdateCurrencyCount();
 
-            if (!deal.DoesPlayerHaveEnoughSilver() || !deal.DoesTraderHaveEnoughSilver())
-            {
-                T.Warn("Сделка не сходится по серебру, сбрасываю.");
-                deal.Reset();
-                return false;
-            }
+            // Проверку серебра оставляем TryExecute: в 1.6 у TradeDeal больше нет публичных Does*EnoughSilver.
             bool traded;
             bool ok = deal.TryExecute(out traded);
             if (ok && traded)
             {
                 Ledger.C?.RecordDeal(sellValue, buyValue);
+                foreach (Line l in chosenSells) Ledger.RecordSale(l.tr.ThingDef, l.count);
                 T.Info("Сделка: продано на " + (int)sellValue + ", куплено на " + (int)buyValue
                     + " (" + chosenSells.Count + " поз. / " + chosenBuys.Count + " поз.). " + Ledger.Summary());
                 return true;
@@ -163,6 +159,9 @@ namespace RimWorldBot.TradeEmpire
     /// <summary>Что продавать, что держать в запасе, что докупать.</summary>
     public static class Policy
     {
+        /// <summary>Во время продовольственного кризиса еду не продаём совсем.</summary>
+        public static bool HoldFood;
+
         private static readonly string[] Never = { "techprint", "relic", "archon", "mechanoid", "persona", "quest", "ancient", "grammophone" };
         private static float foodKeepFraction = 1f;
         private static int colonists;
@@ -212,7 +211,7 @@ namespace RimWorldBot.TradeEmpire
             else if (IsFood(d))
             {
                 int have = T.Count(map, d);
-                keep = Mathf.CeilToInt(have * foodKeepFraction);
+                keep = HoldFood ? have : Mathf.CeilToInt(have * foodKeepFraction);
             }
             int ing;
             if (Planner.IngredientWanted.TryGetValue(d, out ing)) keep = Math.Max(keep, ing);

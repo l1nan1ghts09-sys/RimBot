@@ -19,9 +19,12 @@ namespace RimWorldBot.TradeEmpire
         private static MethodInfo pcv;
         private static int quietSince = -1;
 
+        public static void ResetRuntime() { quietSince = -1; }
+
         public static void Install()
         {
             if (installed || tries >= 5) return;
+            if (Vanilla.Active) return;   // чистая ваниль: патчить нечего, основной бот не установлен
             tries++;
             var hT = T.FindType("HarmonyLib.Harmony");
             var hmT = T.FindType("HarmonyLib.HarmonyMethod");
