@@ -136,7 +136,7 @@ namespace RimWorldBot.TradeEmpire
                     grow++;
                     if (g.cells.Any(c => c.Roofed(map))) roofedGrow++;
                 }
-                noRoof = map.areaManager.NoRoof.cells.Count;
+                noRoof = map.areaManager.NoRoof.ActiveCells.Count();
             }
             catch { }
             string text = "Крыши: солнечных панелей " + solar + (roofedSolar > 0 ? " (под крышей " + roofedSolar + ")" : "")
