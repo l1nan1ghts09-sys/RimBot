@@ -108,13 +108,20 @@ namespace RimWorldBot.TradeEmpire
 
         private static bool MarkNoRoof(Map map, IntVec3 c)
         {
-            if (!RemovableRoof(map, c)) return false;
+            if (!c.InBounds(map)) return false;
+            RoofDef rd = null;
+            try { rd = map.roofGrid.RoofAt(c); } catch { }
+            if (rd != null && rd.isThickRoof) return false;          // нерушимый горный навес
             try
             {
-                if (map.areaManager.NoRoof[c]) return false;
+                bool already = map.areaManager.NoRoof[c];
+                bool wantedRoof = map.areaManager.BuildRoof[c];
+                // Если крыши нет, но игрок/бот пометил её к постройке — отменяем
+                // стройку: панель и грядка должны остаться под открытым небом.
+                if (already && !wantedRoof) return false;
                 map.areaManager.NoRoof[c] = true;
                 map.areaManager.BuildRoof[c] = false;
-                return true;
+                return !already;
             }
             catch { return false; }
         }
