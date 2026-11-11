@@ -83,7 +83,8 @@ namespace RimWorldBot.TradeEmpire
                     e.why = "полезная постройка";
                 }
 
-                float raw = Resources.BuildCost(map, def, stuff, 1);
+                ThingDef useStuff = stuff != null ? stuff : (def.MadeFromStuff ? GenStuff.DefaultStuffFor(def) : null);
+                float raw = Resources.BuildCost(map, def, useStuff, 1);
                 float wealth = 0f;
                 try { wealth = map.wealthWatcher.WealthTotal; } catch { }
                 e.cost = U.Clamp01(raw / Math.Max(1200f, wealth * 0.06f));

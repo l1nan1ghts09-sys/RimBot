@@ -148,7 +148,11 @@ namespace RimWorldBot.TradeEmpire
                         }
                     }
                 }
-                if (!best.center.IsValid) best.center = map.Center;
+                if (!best.center.IsValid)
+                {
+                    best.center = cols.Count > 0 ? cols[0].Position : map.Center;
+                    best.why = "не нашёл ровной площадки — центр у колонистов";
+                }
                 best.line = "База: центр (" + best.center.x + ", " + best.center.z + ") — " + best.why
                     + "; оценка места " + U.Pct(Mathf.Clamp01(best.score));
                 Mind.Think("база", best.line);
