@@ -103,7 +103,7 @@ namespace RimWorldBot.TradeEmpire
         public int ok;
         public double gain;
 
-        public float Rate { get { return n > 0 ? (float)(ok + 1.0) / (n + 2.0) : 0.5f; } }
+        public float Rate { get { return n > 0 ? (float)((ok + 1.0) / (n + 2.0)) : 0.5f; } }
         public float Gain { get { return n > 0 ? (float)(gain / n) : 0f; } }
 
         public void Add(bool success, double g)
@@ -710,7 +710,7 @@ namespace RimWorldBot.TradeEmpire
 
         public static float[] Features(ColonyWorld w)
         {
-            if (w == null) return new float[Meta.Length];
+            if (w == null) return new float[Knowledge.Meta.Length];
             return new float[]
             {
                 U.Clamp01(w.foodDays / Mathf.Max(4f, w.foodTargetDays)),
@@ -728,12 +728,12 @@ namespace RimWorldBot.TradeEmpire
             if (lastFeatures == null) { lastFeatures = Features(w); return; }
             float target = !survived ? 0f : lostSomeone ? 0.25f : 1f;
             float pred = 0f;
-            for (int i = 0; i < Meta.Length; i++) pred += Meta[i] * lastFeatures[i];
+            for (int i = 0; i < Knowledge.Meta.Length; i++) pred += Knowledge.Meta[i] * lastFeatures[i];
             pred = 1f / (1f + (float)Math.Exp(-pred));
             float lr = 0.05f;
-            for (int i = 0; i < Meta.Length; i++)
+            for (int i = 0; i < Knowledge.Meta.Length; i++)
             {
-                Meta[i] = U.Clamp(Meta[i] + lr * (target - pred) * lastFeatures[i], 0.1f, 2.5f);
+                Knowledge.Meta[i] = U.Clamp(Knowledge.Meta[i] + lr * (target - pred) * lastFeatures[i], 0.1f, 2.5f);
             }
             Knowledge.MetaN++;
             Knowledge.Dirty = true;

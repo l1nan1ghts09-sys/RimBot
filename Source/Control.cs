@@ -60,7 +60,7 @@ namespace RimWorldBot.TradeEmpire
             if (pick == null || pick.disabled) { win.Close(true); return; }
             string text = node.text.ToString();
             if (text.Length > 90) text = text.Substring(0, 90) + "…";
-            Mind.Think("событие", "Диалог «" + text.Replace("\n", " ") + "» → выбираю «" + pick.text + "»");
+            Mind.Think("событие", "Диалог «" + text.Replace("\n", " ") + "» → выбираю «" + (R.Get(pick, "text") as string ?? "?") + "»");
             pick.Activate();
         }
 

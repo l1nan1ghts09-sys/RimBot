@@ -87,13 +87,20 @@ namespace RimWorldBot.TradeEmpire
                 var trader = ship as ITrader;
                 if (trader == null || !trader.CanTradeNow) continue;
                 int last;
-                if (lastTradedShip.TryGetValue(ship.loadID, out last) && tick - last < 2500) continue;
+                int shipKey = ShipKey(ship);
+                if (lastTradedShip.TryGetValue(shipKey, out last) && tick - last < 2500) continue;
                 Pawn neg = AutoTrader.BestNegotiator(map);
                 if (neg == null) return;
                 bool done = AutoTrader.TradeWith(trader, neg, map);
-                lastTradedShip[ship.loadID] = tick;
+                lastTradedShip[shipKey] = tick;
                 if (done) return; // одна сделка за проход
             }
+        }
+
+        private static int ShipKey(PassingShip ship)
+        {
+            object id = R.Get(ship, "loadID");
+            return id is int ? (int)id : ship.GetHashCode();
         }
 
         private void VisitorTrade(Map map)
