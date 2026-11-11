@@ -348,11 +348,11 @@ namespace RimWorldBot.TradeEmpire
             {
                 int marked = 0;
                 foreach (Designation d in map.designationManager.AllDesignations) if (d.def == DesignationDefOf.Tame) marked++;
-                if (marked >= 2) return;
+                if (marked >= 2) return 0;
                 int tamed = 0;
                 foreach (Pawn a in map.mapPawns.AllPawnsSpawned)
                     if (a.RaceProps != null && a.RaceProps.Animal && a.Faction == Faction.OfPlayer) tamed++;
-                if (tamed >= 4) return;
+                if (tamed >= 4) return 0;
 
                 IntVec3 anchor = Infrastructure.Anchor(map);
                 int made = 0;
@@ -362,7 +362,9 @@ namespace RimWorldBot.TradeEmpire
                     if (a == null || !a.Spawned || a.Dead || a.Downed) continue;
                     if (a.RaceProps == null || !a.RaceProps.Animal || a.RaceProps.Insect) continue;
                     if (a.Faction != null || a.HostFaction != null) continue;
-                    if (a.RaceProps.wildness > 0.65f) continue;
+                    object wv = R.Get(a.RaceProps, "wildness");
+                    float wild = wv is float ? (float)wv : 0.4f;
+                    if (wild > 0.65f) continue;
                     if (!a.Position.InHorDistOf(anchor, 45f)) continue;
                     if (map.designationManager.DesignationOn(a, DesignationDefOf.Tame) != null) continue;
                     map.designationManager.AddDesignation(new Designation(a, DesignationDefOf.Tame));
