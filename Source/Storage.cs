@@ -58,7 +58,7 @@ namespace RimWorldBot.TradeEmpire
 
         // ------------------------------------------------------------ склад еды
 
-        private static void EnsureFood(Map map)
+        public static void EnsureFood(Map map)
         {
             List<Zone_Stockpile> piles = Piles(map);
             Zone_Stockpile food = piles.FirstOrDefault(z => z.label != null && z.label.StartsWith("Еда (бот)"));
