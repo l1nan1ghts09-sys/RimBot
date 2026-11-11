@@ -39,8 +39,7 @@ namespace RimWorldBot.TradeEmpire
                     U.Clamp01((15f - comps) / 15f));
                 if (cold || heat) need = Math.Max(need, 0.5f);
                 if (!Utility.WeighOnly("craft", "крафтить нужные вещи", 0.35f + need * 0.55f, 0.10f, 0.02f, 1f,
-                    "появятся оружие, лекарства, компоненты и одежда", "колонисты останутся без снаряжения и лекарств",
-                    "проверить рецепты и верстаки")) return;
+                    "появятся оружие, лекарства, компоненты и одежда", "колонисты останутся без снаряжения и лекарств")) return;
 
                 if (missingGuns > 0) EnsureTable(map, "TableMachining");
                 if (missingGuns > 0) EnsureTable(map, "TableSmithy");

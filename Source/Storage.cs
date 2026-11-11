@@ -26,8 +26,7 @@ namespace RimWorldBot.TradeEmpire
             if (tick < next) return;
             next = tick + 6000;
             if (!Utility.WeighOnly("storage", "проверить склады и порчу", 0.50f, 0.08f, 0.02f, 1f,
-                "еда и вещи будут храниться правильно и меньше испортятся", "продукты сгниют, а склад забьётся",
-                "настроить хранение, крышу и температуру")) return;
+                "еда и вещи будут храниться правильно и меньше испортятся", "продукты сгниют, а склад забьётся")) return;
 
             T.Safe("StorageGeneral", () => EnsureGeneral(map));
             T.Safe("StorageFood", () => EnsureFood(map));

@@ -91,7 +91,7 @@ namespace RimWorldBot.TradeEmpire
                             "верстаки будут приносить товар и серебро", "производство простоит без заданий",
                             () => Planner.Run(map));
                     break;
-                case 2: if (s.researchBoost) T.Safe("Research", () => ResearchBoost.InjectPriorities); break;
+                case 2: if (s.researchBoost) T.Safe("Research", () => ResearchBoost.InjectPriorities()); break;
             }
         }
 

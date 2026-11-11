@@ -24,8 +24,7 @@ namespace RimWorldBot.TradeEmpire
             ResearchProjectDef current = BotBridge.CurrentResearch();
             if (current != null && !current.IsFinished) return;
             if (!Utility.WeighOnly("research", "выбрать исследование", 0.50f, 0.07f, 0.02f, 1f,
-                "колония получит новые технологии и постройки", "развитие остановится, оборона и крафт отстанут",
-                "поставить следующее исследование")) return;
+                "колония получит новые технологии и постройки", "развитие остановится, оборона и крафт отстанут")) return;
 
             ResearchProjectDef pick = Choose(map, out string why);
             if (pick == null || pick == current) return;
