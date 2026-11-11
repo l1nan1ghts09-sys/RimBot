@@ -124,7 +124,13 @@ namespace RimWorldBot.TradeEmpire
             Plan plan = ChoosePlan(map, pop, site, urgent, pocket, underPressure);
             if (plan == null)
             {
-                line = "Дом: не хватает дерева/блоков на коробку — коплю материалы или строю пещеру.";
+                // Не сидим сложа руки: если леса есть, помечаем деревья на
+                // рубку с запасом на резерв ресурсов, а не ровно под стены.
+                int cut = RequestWood(map, 130);
+                line = cut > 0
+                    ? "Дом: материалов мало — пометил " + cut + " деревьев на рубку, потом начну коробку."
+                    : "Дом: не хватает дерева/блоков на коробку — коплю материалы или строю пещеру.";
+                if (cut > 0) Mind.Think("дом", line);
                 return false;
             }
 
@@ -339,6 +345,40 @@ namespace RimWorldBot.TradeEmpire
             }
             catch { }
             return requested;
+        }
+
+        /// <summary>Просит лесорубов заготовить дерево именно под дом, с запасом на резерв.</summary>
+        private static int RequestWood(Map map, int need)
+        {
+            if (map == null) return 0;
+            int wood = T.Count(map, ThingDefOf.WoodLog);
+            if (wood >= need) return 0;
+            int pending = 0;
+            try
+            {
+                foreach (Designation d in map.designationManager.AllDesignations)
+                    if (d.def == DesignationDefOf.CutPlant) pending++;
+            }
+            catch { }
+            if (pending >= 8) return 0;
+
+            int made = 0;
+            try
+            {
+                foreach (Thing t in GenRadial.RadialDistinctThingsAround(
+                    Infrastructure.Anchor(map), map, 35f, true))
+                {
+                    if (made >= 6 || wood + made * 20 >= need) break;
+                    Plant p = t as Plant;
+                    if (p == null || p.def.plant == null || !p.def.plant.IsTree) continue;
+                    if (p.def.plant.harvestedThingDef != ThingDefOf.WoodLog) continue;
+                    if (map.designationManager.DesignationOn(p, DesignationDefOf.CutPlant) != null) continue;
+                    map.designationManager.AddDesignation(new Designation(p, DesignationDefOf.CutPlant));
+                    made++;
+                }
+            }
+            catch (Exception e) { T.Warn("Дом: не удалось пометить деревья: " + e.Message); }
+            return made;
         }
 
         private static bool EnsureBed(Map map, ref int roofedBeds)
