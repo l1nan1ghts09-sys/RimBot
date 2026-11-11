@@ -334,6 +334,7 @@ namespace RimWorldBot.TradeEmpire
         {
             var s = TradeEmpireMod.S;
             if (s == null) return SkillResult.No("");
+            if (Vanilla.Active) { Vanilla.DefensePrep(w.map); Vanilla.Hunt(w.map); }
             BotBridge.SetBotSetting("autoDraftOnRaid", true);
             bool flee = w.threatRatio > 1.15f || w.healthScore < 0.7f;
             BotBridge.SetBotSetting("autoFlee", flee);
@@ -352,6 +353,7 @@ namespace RimWorldBot.TradeEmpire
 
         private static SkillResult DefensePrep(ColonyWorld w)
         {
+            if (Vanilla.Active) Vanilla.DefensePrep(w.map);
             BotBridge.SetBotSetting("autoDefense", true);
             string msg = "Готовлю оборону: риск рейда " + U.Pct(w.baseRisk) + ", турелей " + w.turrets
                 + ", ловушек " + w.traps + ", с прошлого рейда " + U.F(w.daysSinceThreat) + " дн.";
@@ -390,6 +392,7 @@ namespace RimWorldBot.TradeEmpire
                 if (anchor != null) wild = Opening.DesignateWildFood(w.map, anchor.Position, 20);
             }
             catch { }
+            if (Vanilla.Active) Vanilla.Hunt(w.map);
             BotBridge.SetBotSetting("autoHunt", true);
             BotBridge.SetBotSetting("autoCutPlants", true);
             BotBridge.SetBotSetting("autoGrowing", true);
@@ -559,6 +562,7 @@ namespace RimWorldBot.TradeEmpire
 
         private static SkillResult Animals(ColonyWorld w)
         {
+            if (Vanilla.Active) Vanilla.Tame(w.map);
             BotBridge.SetBotSetting("autoTame", true);
             return SkillResult.Yes("Животные: приручение включено — еда, ткани и помощь в бою.", MetricKind.Food, 90000);
         }

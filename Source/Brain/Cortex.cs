@@ -60,6 +60,7 @@ namespace RimWorldBot.TradeEmpire
             Planner.ResetRuntime();
             Watchdog.ResetRuntime();
             Survival.ResetRuntime();
+            Vanilla.ResetRuntime();
             Infrastructure.ResetRuntime();
             ThreatFix.ResetRuntime();
             Skills.ResetRuntime();

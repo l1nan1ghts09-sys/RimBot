@@ -26,6 +26,7 @@ namespace RimWorldBot.TradeEmpire
         public bool autoSpeed = true;         // бот сам управляет скоростью времени
         public bool takeover = true;          // заменить энергетику и приоритеты работ бота своими
         public bool watchdog = true;          // разрыв зацикливаний
+        public bool vanillaAuto = true;       // автономный режим без основного бота
         // ---- 2.0: когнитивное ядро ----
         public bool deepBrain = true;         // цели, планы, прогнозы, рефлексия
         public bool smartResearch = true;     // выбирать исследования по расчётной ценности
@@ -62,6 +63,7 @@ namespace RimWorldBot.TradeEmpire
             Scribe_Values.Look(ref calmSpeed, "calmSpeed", 2);
             Scribe_Values.Look(ref takeover, "takeover", true);
             Scribe_Values.Look(ref watchdog, "watchdog", true);
+            Scribe_Values.Look(ref vanillaAuto, "vanillaAuto", true);
             Scribe_Values.Look(ref deepBrain, "deepBrain", true);
             Scribe_Values.Look(ref smartResearch, "smartResearch", true);
             Scribe_Values.Look(ref adaptiveTakeover, "adaptiveTakeover", true);
@@ -89,11 +91,11 @@ namespace RimWorldBot.TradeEmpire
         public TradeEmpireMod(ModContentPack content) : base(content)
         {
             S = GetSettings<TradeSettings>();
-            T.Info("Торговая империя загружена.");
+            T.Info("RimWorldBot (vanilla) загружен: автономный автопилот колонии.");
             T.Safe("ResearchBoost", ResearchBoost.InjectPriorities);
         }
 
-        public override string SettingsCategory() { return "RimWorldBot — Торговая империя"; }
+        public override string SettingsCategory() { return "RimWorldBot — автопилот колонии"; }
 
         public override void DoSettingsWindowContents(Rect inRect)
         {
@@ -103,7 +105,7 @@ namespace RimWorldBot.TradeEmpire
             l.Begin(view);
             l.Label("Мозг 2.0: восприятие → цели → навыки → проверка результата → обучение. Знания хранятся в Config/RimBotMind.txt.");
             l.GapLine();
-            l.CheckboxLabeled("Включить торговую империю", ref S.enabled);
+            l.CheckboxLabeled("Включить автопилот", ref S.enabled);
             l.CheckboxLabeled("Орбитальная торговля (консоль связи)", ref S.orbitalTrade);
             l.CheckboxLabeled("Авто-сделки в окнах торговли (гости/караваны)", ref S.visitorTrade);
             l.CheckboxLabeled("Авто-производство по прибыльности", ref S.production);
@@ -116,8 +118,9 @@ namespace RimWorldBot.TradeEmpire
             l.CheckboxLabeled("Авто-выбор в диалогах событий и чистка писем", ref S.autoControl);
             l.CheckboxLabeled("Принимать безопасные квесты", ref S.quests);
             l.CheckboxLabeled("Бот управляет скоростью времени", ref S.autoSpeed);
-            l.CheckboxLabeled("Умная энергетика и приоритеты работ (вместо встроенных)", ref S.takeover);
+            l.CheckboxLabeled("Умная энергетика и приоритеты работ", ref S.takeover);
             l.CheckboxLabeled("Разрыв зацикливаний (сторож)", ref S.watchdog);
+            l.CheckboxLabeled("Автономный режим: оборона, охота, посевы, добыча", ref S.vanillaAuto);
             l.GapLine();
             l.Label("— Когнитивное ядро 2.0 —");
             l.CheckboxLabeled("Глубокий мозг: цели, планы, прогнозы, рефлексия", ref S.deepBrain);

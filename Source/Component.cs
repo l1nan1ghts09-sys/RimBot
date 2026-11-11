@@ -56,6 +56,13 @@ namespace RimWorldBot.TradeEmpire
             int tick = Find.TickManager.TicksGame;
             if (tick % 30 != 0) return;
 
+            // Чистая ванильная игра: основной бот не установлен — ведём колонию сами.
+            if (Vanilla.Active)
+            {
+                Map home = Find.AnyPlayerHomeMap;
+                if (home != null) T.Safe("Vanilla", () => Vanilla.Run(home, tick));
+            }
+
             // Открытое окно торговли (караван/гость/кем-то открытое): исполняем сделку сами.
             if (s.visitorTrade) T.Safe("OpenDialog", () => AutoTrader.HandleOpenDialog(ref dialogSeenTick));
 
