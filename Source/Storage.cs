@@ -125,7 +125,7 @@ namespace RimWorldBot.TradeEmpire
                 Zone_Stockpile food = FoodZone(map);
                 if (food != null && food.cells.Count > 0)
                 {
-                    food.settings.filter.SetAllowAll();
+                    food.settings.filter.SetAllowAll(null, true);
                     food.settings.Priority = StoragePriority.Critical;
                     return food;
                 }
