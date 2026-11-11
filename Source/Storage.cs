@@ -29,8 +29,8 @@ namespace RimWorldBot.TradeEmpire
                 "еда и вещи будут храниться правильно и меньше испортятся", "продукты сгниют, а склад забьётся")) return;
 
             T.Safe("StorageGeneral", () => EnsureGeneral(map));
-            T.Safe("StorageSheltered", () => EnsureSheltered(map));
             T.Safe("StorageFood", () => EnsureFood(map));
+            T.Safe("StorageSheltered", () => EnsureSheltered(map));
             T.Safe("StorageSpoil", () => Spoilage(map, tick));
         }
 

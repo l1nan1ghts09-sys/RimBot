@@ -189,6 +189,8 @@ namespace RimWorldBot.TradeEmpire
             int injured = cols.Count(p => p.health.HasHediffsNeedingTend() || p.Downed);
             int build = map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).Count(t => t.Faction == Faction.OfPlayer)
                       + map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingFrame).Count(t => t.Faction == Faction.OfPlayer);
+            int damaged = map.listerBuildings.allBuildingsColonist.Count(b => b.def.useHitPoints
+                && b.MaxHitPoints > 0 && b.HitPoints < b.MaxHitPoints * 0.9f);
             int farmCells = 0, sowCells = 0, ripeCells = 0;
             foreach (Zone z in map.zoneManager.AllZones)
             {
@@ -221,6 +223,7 @@ namespace RimWorldBot.TradeEmpire
                 { "PlantCutting", foodDays < 3 || wood < 120 || cutPending > 0 ? 0.8f : 0.25f },
                 { "Hunting", foodDays < 4 ? 0.8f : 0.1f },
                 { "Construction", build > 0 ? 0.8f : 0.35f },
+                { "Repair", damaged > 0 ? 0.85f : 0.10f },
                 { "Hauling", foodDays < 3 ? 0.75f : 0.5f },
                 { "Mining", steel < 200 ? 0.55f : 0.3f },
                 { "Research", research ? 0.55f : 0.3f },
@@ -296,6 +299,7 @@ namespace RimWorldBot.TradeEmpire
             if (injured > 0) Specialist(cols, WT("Doctor"));
             if (foodDays < 4f) Specialist(cols, WT("Cooking"));
             if (build > 0 || Defense.WantsBuilders) Specialist(cols, WT("Construction"));
+            if (damaged > 0) Specialist(cols, WT("Repair"));
             if (craftBills > 0) Specialist(cols, WT("Crafting"));
 
             if (tickOfSummary == -1 || Find.TickManager.TicksGame - tickOfSummary > 6000)
@@ -305,7 +309,8 @@ namespace RimWorldBot.TradeEmpire
                     ? ", грядок " + farmCells + " кл. (посеять " + sowCells + ", собрать " + ripeCells + ")"
                     : ", грядок нет";
                 Mind.Think("работа", "Приоритеты: еда " + foodDays.ToString("0.0") + " дн., раненых " + injured + ", строек " + build
-                    + ", дерева " + wood + ", стали " + steel + farmInfo + ". Каждому максимум 2 вида работ с приоритетом 1.");
+                    + ", дерева " + wood + ", стали " + steel + ", повреждено построек " + damaged + farmInfo
+                    + ". Каждому максимум 2 вида работ с приоритетом 1.");
             }
         }
 
