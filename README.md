@@ -1,11 +1,16 @@
-# RimWorldBot — автопилот колонии (vanilla)
+# RimWorldBot — автопилот колонии (vanilla) 2.1.0
 
-ИИ-автопилот колонии для **чистого RimWorld 1.6**. Один мод, одна DLL:
+Готовый мод для **чистого RimWorld 1.6**. Один мод, одна DLL:
 без Harmony, без DLC и без других модов.
 
-- `Assemblies/RimWorldBot.TradeEmpire.dll` — весь бот, исходники в `Source/`.
-- Панель «Мозг бота»: `Ctrl+T` или кнопка справа внизу.
-- Настройки: Options → Mod settings → RimWorldBot.
+## Установка
+
+1. Скачайте репозиторий: **Code → Download ZIP**.
+2. Распакуйте и скопируйте папку с модом в `RimWorld/Mods/`.
+   Внутри должны лежать `About/`, `Assemblies/`, `Defs/`.
+3. Включите мод в списке. Порядок не важен — зависимостей нет.
+
+Готовая сборка уже в репозитории: `Assemblies/RimWorldBot.TradeEmpire.dll`.
 
 ## Что делает
 
@@ -22,19 +27,7 @@
 - **Мозг 2.0:** цели с объяснением, навыки с проверкой результата, уроки, дневник, память между играми
   (`Config/RimBotMind.txt`).
 
-## Установка
+## Панель
 
-1. Распаковать папку `RimWorldBot` в `RimWorld/Mods/`.
-2. Включить мод в списке. Порядок не важен — других модов не требуется.
-3. Загрузить игру. Бот начнёт работать сам.
-
-## Сборка
-
-```bat
-dotnet build RimWorldBot.TradeEmpire.CI.csproj -c Release
-```
-
-`Krafs.Rimworld.Ref` даёт ссылочные сборки RimWorld 1.6 — установленная игра не нужна.
-GitHub Actions собирает DLL на каждый push в `Source/**` и кладёт её в `Assemblies/`.
-
-Подробности, архитектура и история версий: [README_TRADE.md](README_TRADE.md).
+`Ctrl+T` или кнопка «Мозг бота» справа внизу: обзор, цели, план, обучение, знания, журнал.
+Настройки: Options → Mod settings → RimWorldBot.
