@@ -456,7 +456,7 @@ namespace RimWorldBot.TradeEmpire
         private static bool TryBuild(Map map, ThingDef def, IntVec3 c, bool stoneFirst)
         {
             if (def == null || !c.InBounds(map) || c.Fogged(map)) return false;
-            if (!c.Standable(map) || c.GetEdifice(map) != null) return false;
+            if (!Site.GoodGround(map, c) || c.GetEdifice(map) != null) return false;
             if (map.zoneManager.ZoneAt(c) != null) return false;
             foreach (Thing t in map.thingGrid.ThingsAt(c))
                 if (!t.def.CanOverlapZones) return false;
@@ -575,7 +575,7 @@ namespace RimWorldBot.TradeEmpire
         private static bool Buildable(Map map, IntVec3 c)
         {
             if (!c.InBounds(map) || c.Fogged(map)) return false;
-            if (!c.Standable(map) || c.GetEdifice(map) != null) return false;
+            if (!Site.GoodGround(map, c) || c.GetEdifice(map) != null) return false;
             if (map.zoneManager.ZoneAt(c) != null) return false;      // не застраиваем грядки и склады
             return true;
         }

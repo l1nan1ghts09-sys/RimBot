@@ -637,6 +637,7 @@ namespace RimWorldBot.TradeEmpire
                     IntVec3 c = new IntVec3(min.x + x, 0, min.z + z);
                     if (!c.InBounds(map) || c.Fogged(map)) return false;
                     bool edge = x == 0 || z == 0 || x == side - 1 || z == side - 1;
+                    if (!Site.GoodGround(map, c)) return false;
                     if (!edge)
                     {
                         if (c.GetEdifice(map) != null) return false;

@@ -101,9 +101,10 @@ namespace RimWorldBot.TradeEmpire
             {
                 foreach (IntVec3 c in GenRadial.RadialCellsAround(center, r, true).Where(x => Math.Abs((x - center).LengthManhattan - r) <= 1))
                 {
-                    if (!c.InBounds(map) || !c.Standable(map) || c.Fogged(map)) continue;
+                    if (!Site.GoodGround(map, c)) continue;
                     if (indoors && !c.Roofed(map)) continue;
-                    if (map.areaManager.Home != null && !map.areaManager.Home[c]) continue;
+                    // Стройка идёт вокруг выбранного места базы, а не только в старой Home-зоне:
+                    // иначе дом, кровати и верстаки не встанут на хорошем рельефе.
                     Rot4 rot = Rot4.South;
                     if (!GenConstruct.CanPlaceBlueprintAt(def, c, rot, map, false, null, null, stuff).Accepted) continue;
                     if (def.hasInteractionCell)

@@ -40,6 +40,18 @@ namespace RimWorldBot.TradeEmpire
         public static IntVec3 Center(Map map) { return Best(map).center; }
         public static string Line(Map map) { return Best(map).line; }
 
+        /// <summary>Годная для стройки земля: не вода, не болото и не жижа.</summary>
+        public static bool GoodGround(Map map, IntVec3 c)
+        {
+            if (map == null || !c.InBounds(map) || c.Fogged(map) || !c.Standable(map)) return false;
+            TerrainDef t = c.GetTerrain(map);
+            string n = t != null && t.defName != null ? t.defName : "";
+            return n.IndexOf("Water", StringComparison.OrdinalIgnoreCase) < 0
+                && n.IndexOf("Marsh", StringComparison.OrdinalIgnoreCase) < 0
+                && n.IndexOf("Mud", StringComparison.OrdinalIgnoreCase) < 0;
+        }
+
+
         private static Info Compute(Map map)
         {
             Info best = new Info();
