@@ -101,9 +101,36 @@ namespace RimWorldBot.TradeEmpire
             Zone_Stockpile zone = piles.FirstOrDefault(z => z.label != null && z.label.StartsWith("Вещи (бот)"));
             if (zone != null) return zone;
 
+            // Если у колонии уже есть крытая складская зона — используем её.
+            foreach (Zone_Stockpile z in piles)
+            {
+                if (z.label != null && z.label.StartsWith("Еда (бот)")) continue;
+                if (z.cells.Count < 4) continue;
+                bool roofed = true;
+                foreach (IntVec3 c in z.cells) if (!c.Roofed(map)) { roofed = false; break; }
+                if (roofed)
+                {
+                    z.settings.Priority = StoragePriority.Critical;
+                    z.settings.filter.SetAllow(ThingCategoryDefOf.Foods, false);
+                    return z;
+                }
+            }
+
             IntVec3 anchor = Infrastructure.Anchor(map);
             List<IntVec3> cells = PickCells(map, anchor, 20f, 16, true);
-            if (cells.Count < 4) return null;
+            if (cells.Count < 4)
+            {
+                // Свободных клеток в крытом помещении нет — используем продуктовый склад
+                // как общий крытый склад: холод не вредит снаряжению.
+                Zone_Stockpile food = FoodZone(map);
+                if (food != null && food.cells.Count > 0)
+                {
+                    food.settings.filter.SetAllowAll();
+                    food.settings.Priority = StoragePriority.Critical;
+                    return food;
+                }
+                return null;
+            }
 
             zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
             map.zoneManager.RegisterZone(zone);

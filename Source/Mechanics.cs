@@ -89,9 +89,12 @@ namespace RimWorldBot.TradeEmpire
             }
             if (temp < 8f && !Infrastructure.Exists(map, T.Def("Heater")))
             {
-                // Холод полезен для еды, но не для людей; греем жильё, а не морозилку.
-                BuildClimate(map, "Heater", 21f, Infrastructure.Anchor(map),
-                    "в жилье холодно; ставлю обогреватель у базы");
+                // Холод полезен для еды, но не для людей; греем спальню, а не морозилку.
+                Building_Bed bed = map.listerBuildings.allBuildingsColonist.OfType<Building_Bed>()
+                    .FirstOrDefault(b => b.Position.Roofed(map));
+                if (bed != null)
+                    BuildClimate(map, "Heater", 21f, bed.Position,
+                        "в жилье холодно; ставлю обогреватель у кроватей");
             }
         }
 
