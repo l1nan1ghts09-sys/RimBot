@@ -40,7 +40,7 @@ namespace RimWorldBot.TradeEmpire
         {
             if (TradeEmpireMod.S != null && !TradeEmpireMod.S.autoPatterns) return "Паттерны: выключены в настройках.";
             Site.Info site = Site.Best(map);
-            if (site == null || (!site.cave && !site.hollow))
+            if (site == null || (!site.cave && !site.hollow && !site.pocket))
                 return site != null && site.poor
                     ? "Открытая база: материалов мало, строю дешёвые укрытия и не трачусь на лишние стены."
                     : "Открытая база: места хватает, развиваю фермы и энергетику.";
@@ -50,7 +50,8 @@ namespace RimWorldBot.TradeEmpire
 
             string text = "Пещера: естественные стены и горная крыша уже дают укрытие.";
             int changed = 0;
-            if (!caveRoomDone && Beds(map) < Math.Max(1, map.mapPawns.FreeColonistsSpawnedCount)
+            if ((site.cave || site.hollow) && !caveRoomDone
+                && Beds(map) < Math.Max(1, map.mapPawns.FreeColonistsSpawnedCount)
                 && TryCaveRoom(map, site))
             {
                 changed++;
@@ -62,8 +63,9 @@ namespace RimWorldBot.TradeEmpire
                 text += " Поставил дверь в узком проходе — меньше открытых входов.";
             }
             if (site.hollow) text += " Это углубление в скале: дешевле открытой базы, пока нет материалов.";
+            else if (site.pocket) text += " Это скальный карман: естественные стены уже прикрывают базу с нескольких сторон.";
             if (site.poor) text += " Бюджет ранний: сначала скала, потом расширение.";
-            if (site.caveFloor < 18) text += " Внутри тесновато — расширю проход, когда появятся кирка и свет.";
+            if ((site.cave || site.hollow) && site.caveFloor < 18) text += " Внутри тесновато — расширю проход, когда появятся кирка и свет.";
             if (changed == 0) text += " Проверил вход и естественные стены.";
             return text;
         }

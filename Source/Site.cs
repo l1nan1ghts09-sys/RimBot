@@ -21,7 +21,7 @@ namespace RimWorldBot.TradeEmpire
             public int buildable, rock, water, roofed;
             public int mountainRoof, naturalRock, caveFloor, perimeterRock, perimeterOpen;
             public float fertility;
-            public bool cave, hollow, poor;
+            public bool cave, hollow, pocket, poor;
             public float wealth;
             public string kind = "открытое место";
             public string why = "";
@@ -43,9 +43,14 @@ namespace RimWorldBot.TradeEmpire
             // Рельеф не меняется, но кровати/дома меняют смысл центра базы: обновляем
             // не на каждом тике, а раз в 3000 тиков, чтобы не сканировать карту зря.
             if (cachedMap == map && cached != null && now - cachedAt < 3000) return cached;
+            Info prev = cached;
             cachedMap = map;
             cachedAt = now;
             cached = Compute(map);
+            // Не засоряем журнал одной и той же строкой каждые 3000 тиков:
+            // пишем только когда центр или тип места действительно изменились.
+            if (prev == null || prev.center != cached.center || prev.kind != cached.kind)
+                Mind.Think("база", cached.line);
             return cached;
         }
 
@@ -172,7 +177,10 @@ namespace RimWorldBot.TradeEmpire
                         }
                         bool caveLikely = mountainRoof >= 12 && caveFloor >= 8 && perimeterRock >= 6;
                         bool hollow = caveLikely && perimeterRock >= 8 && perimeterOpen <= 10 && caveFloor >= 10;
-                        if (n == 0 || buildable < (caveLikely ? 14 : 24)) continue;
+                        // Скальный карман без горной крыши: естественные стены с трёх
+                        // сторон тоже лучше открытого поля, хотя укрытия сверху нет.
+                        bool pocket = !caveLikely && perimeterRock >= 10 && perimeterOpen <= 10 && rock >= 12;
+                        if (n == 0 || buildable < (caveLikely ? 14 : pocket ? 18 : 24)) continue;
 
                         float flat = buildable / (float)n;
                         float f = fert / Math.Max(1, n);
@@ -197,6 +205,13 @@ namespace RimWorldBot.TradeEmpire
                             if (perimeterOpen <= 6) caveBonus += 0.06f; // узкий вход удобно держать
                             if (hollow) caveBonus += 0.05f;
                             if (f < 0.35f) caveBonus -= 0.04f;         // в пещере мало почвы: нужна охота/гидропоника
+                        }
+                        else if (pocket)
+                        {
+                            float wallShare = perimeterRock / (float)Math.Max(1, perimeterRock + perimeterOpen);
+                            caveBonus = 0.08f + wallShare * 0.08f;
+                            if (poor) caveBonus += 0.10f;              // стены уже есть — не тратимся на забор
+                            if (perimeterOpen <= 6) caveBonus += 0.04f; // узкий вход
                         }
                         else if (poor)
                         {
@@ -223,14 +238,16 @@ namespace RimWorldBot.TradeEmpire
                             best.perimeterOpen = perimeterOpen;
                             best.cave = caveLikely;
                             best.hollow = hollow;
+                            best.pocket = pocket;
                             best.poor = poor;
                             best.wealth = wealth;
                             best.kind = caveLikely
                                 ? (hollow ? "углубление в скале" : "пещера/скальный карман")
-                                : "открытое место";
+                                : (pocket ? "скальный карман" : "открытое место");
                             best.why = "ровных " + Mathf.RoundToInt(flat * 100f) + "%, плодородие "
                                 + Mathf.RoundToInt(f * 100f) + "%, камня " + rock + ", воды " + water
                                 + ", горной крыши " + mountainRoof + ", проходов " + perimeterOpen
+                                + (pocket ? ", естественных стен " + perimeterRock : "")
                                 + (poor ? ", начальный бюджет" : "") + ", до края " + edgeDist;
                         }
                     }
@@ -238,11 +255,12 @@ namespace RimWorldBot.TradeEmpire
                 if (!best.center.IsValid)
                 {
                     best.center = cols.Count > 0 ? cols[0].Position : map.Center;
+                    best.kind = "у колонистов";
                     best.why = "не нашёл ровной площадки — центр у колонистов";
                 }
+                if (best.kind == null || best.kind.Length == 0) best.kind = "открытое место";
                 best.line = "База: " + best.kind + " — центр (" + best.center.x + ", " + best.center.z + ") — " + best.why
                     + "; оценка места " + U.Pct(Mathf.Clamp01(best.score));
-                Mind.Think("база", best.line);
             }
             catch (Exception e)
             {

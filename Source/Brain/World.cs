@@ -91,7 +91,7 @@ namespace RimWorldBot.TradeEmpire
             w.ReadResources();
             w.site = Site.Best(map);
             w.caveBase = w.site != null && w.site.cave;
-            w.hollowBase = w.site != null && w.site.hollow;
+            w.hollowBase = w.site != null && (w.site.hollow || w.site.pocket);
             w.poorColony = w.site != null && w.site.poor;
             w.ReadThreat();
             w.ReadEconomy();
