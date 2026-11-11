@@ -34,7 +34,7 @@ namespace RimWorldBot.TradeEmpire
         {
             float nut = 0;
             foreach (ThingDef d in DefDatabase<ThingDef>.AllDefsListForReading)
-                if (d.IsNutritionGivingIngestible && !d.IsDrug && d.category == ThingCategory.Item)
+                if (FoodSafety.IsHumanFood(d))
                     nut += T.Count(map, d) * d.GetStatValueAbstract(StatDefOf.Nutrition);
             return nut / Math.Max(1f, colonists * 2.6f);
         }
@@ -45,11 +45,13 @@ namespace RimWorldBot.TradeEmpire
             bool starving = cols.Any(p => p.needs != null && p.needs.food != null && p.needs.food.CurLevelPercentage < 0.15f);
             if (days >= 3f && !starving) return;
             if (!Ready("food", 2500)) return;
-            int n = Opening.DesignateWildFood(map, cols[0].Position, 14);
+            int n = Opening.DesignateWildFood(map, cols[0].Position, 24);
+            int fields = 0;
+            try { fields = Agriculture.EnsureFields(map, true); } catch { }
             BotSettingsAccess.Set("autoHunt", true);
             BotSettingsAccess.Set("autoCutPlants", true);
             Memory.Journal("КРИЗИС еды: запас на " + days.ToString("0.0") + " дн." + (starving ? ", есть голодающие" : "")
-                + ". Помечено диких растений: " + n + ", включена охота.");
+                + ". Помечено диких растений: " + n + ", грядки +" + fields + ", включена охота.");
         }
 
         private static void Exposure(Map map, List<Pawn> cols)
@@ -114,10 +116,46 @@ namespace RimWorldBot.TradeEmpire
             string built = "";
             if (camp != null && map.listerThings.ThingsOfDef(camp).Count == 0 && !HasBlueprint(map, camp)
                 && Infrastructure.PlaceNear(map, camp, anchor.Position, 3, 12, false)) built += " костёр";
-            if (sleep != null && map.listerThings.ThingsOfDef(sleep).Count < cols.Count && !HasBlueprint(map, sleep)
-                && Infrastructure.PlaceNear(map, sleep, anchor.Position, 3, 12, false)) built += " спальное_место";
+            if (sleep != null)
+            {
+                int spots = map.listerThings.ThingsOfDef(sleep).Count;
+                if (spots < cols.Count)
+                {
+                    int added = PlaceSpots(map, sleep, anchor.Position, cols.Count - spots);
+                    if (added > 0) built += " спальных_мест:" + added;
+                }
+            }
             if (food + wood > 0 || built.Length > 0)
                 Memory.Journal("СТАРТ с нуля: помечено еды " + food + ", деревьев " + wood + (built.Length > 0 ? ", заложено:" + built : "") + ".");
+        }
+
+        /// <summary>Спальное место — бесплатная мгновенная постройка без чертежа, поэтому ставим его напрямую.</summary>
+        private static int PlaceSpots(Map map, ThingDef def, IntVec3 center, int count)
+        {
+            int n = 0;
+            foreach (IntVec3 c in GenRadial.RadialCellsAround(center, 9f, true))
+            {
+                if (n >= count) break;
+                if (!c.InBounds(map) || !c.Standable(map) || c.Fogged(map)) continue;
+                if (c.GetEdifice(map) != null) continue;
+                bool busy = false;
+                foreach (Thing t in map.thingGrid.ThingsAt(c))
+                {
+                    if (t.def.category == ThingCategory.Item || t.def.category == ThingCategory.Pawn) { busy = true; break; }
+                }
+                if (busy) continue;
+                try
+                {
+                    Thing spot = ThingMaker.MakeThing(def, null);
+                    if (spot == null) break;
+                    spot.SetFactionDirect(Faction.OfPlayer);
+                    GenSpawn.Spawn(spot, c, map, Rot4.North);
+                    n++;
+                }
+                catch (Exception e) { T.Warn("Спальное место не поставлено: " + e.Message); break; }
+            }
+            if (n > 0) Mind.Think("быт", "Поставил спальных мест: " + n + " — колонистам не придётся спать на земле.");
+            return n;
         }
 
         private static bool HasBlueprint(Map map, ThingDef d)

@@ -40,6 +40,22 @@ namespace RimWorldBot.TradeEmpire
         {
             botDrafted.Clear();
             nextDefense = nextFarm = nextHunt = nextTame = nextMine = nextEquip = nextBills = nextPrison = nextShelter = 0;
+            Storage.ResetRuntime();
+            Development.ResetRuntime();
+            Defense.ResetRuntime();
+            Focus.ResetRuntime();
+            Crafting.ResetRuntime();
+            Site.ResetRuntime();
+            Utility.ResetRuntime();
+            FoodSafety.ResetRuntime();
+            Agriculture.ResetRuntime();
+            SurvivalTemplates.ResetRuntime();
+            Deterioration.ResetRuntime();
+            Mechanics.ResetRuntime();
+            Roofs.ResetRuntime();
+            Zones.ResetRuntime();
+            Patterns.ResetRuntime();
+            Housing.ResetRuntime();
             lastThought = 0;
             announced = false;
         }
@@ -53,15 +69,74 @@ namespace RimWorldBot.TradeEmpire
                 Mind.Think("решение", "Основной бот не найден: включаю полностью автономный ванильный режим — оборона, охота, посевы, добыча, экипировка и задания на верстаках.");
             }
 
-            T.Safe("VanillaDefense", () => Defense(map, tick));
-            if (tick >= nextBills) { nextBills = tick + 6000; T.Safe("VanillaBills", () => Bills(map)); }
-            if (tick >= nextShelter) { nextShelter = tick + 9000; T.Safe("VanillaShelter", () => Shelter(map)); }
-            if (tick >= nextEquip) { nextEquip = tick + 3000; T.Safe("VanillaEquip", () => Equip(map)); }
-            if (tick >= nextFarm) { nextFarm = tick + 4000; T.Safe("VanillaFarm", () => Farm(map)); }
-            if (tick >= nextHunt) { nextHunt = tick + 2500; T.Safe("VanillaHunt", () => Hunt(map)); }
-            if (tick >= nextMine) { nextMine = tick + 4000; T.Safe("VanillaMine", () => Mine(map)); }
-            if (tick >= nextTame) { nextTame = tick + 6000; T.Safe("VanillaTame", () => Tame(map)); }
+            T.Safe("Focus", () => Focus.Run(map, tick));
+            T.Safe("Needs", () => Needs.Run(map));
+            T.Safe("VanillaDefense", () => RaidDefense(map, tick));
+            T.Safe("DefenseBuild", () => Defense.Run(map, tick));
+            if (tick >= nextBills && Focus.Allows("Craft"))
+            {
+                nextBills = tick + 6000;
+                Utility.Weigh("bills", "обновить задания на верстаках", 0.55f, 0.06f, 0.0f, 1f,
+                    "верстаки начнут делать нужные вещи и еду", "задания устареют, крафт и готовка встанут",
+                    () => Bills(map));
+            }
+            if (Focus.Allows("Craft")) T.Safe("Crafting", () => Crafting.Run(map, tick));
+            if (tick >= nextShelter && Focus.Allows("Shelter"))
+            {
+                nextShelter = tick + 9000;
+                Utility.Weigh("shelter", "построить или достроить жильё", 0.85f, 0.25f, 0.05f, 1f,
+                    "появятся стены, дверь и крыша, кровати перестанут мокнуть", "колонисты останутся под открытым небом",
+                    () => Housing.Build(map, true));
+            }
+            if (tick >= nextEquip)
+            {
+                nextEquip = tick + 3000;
+                Utility.Weigh("equip", "выдать оружие и экипировку", 0.45f, 0.05f, 0.02f, 1f,
+                    "колонисты будут готовы к бою", "безоружные побегут или погибнут",
+                    () => Equip(map));
+            }
+            if (tick >= nextFarm && Focus.Allows("Food"))
+            {
+                nextFarm = tick + 4000;
+                float f = Utility.FoodPressure(map);
+                Utility.Weigh("farm", "разбить или расширить грядки", 0.15f + f * 0.75f, 0.10f, 0.02f, 1f,
+                    "появится свой урожай и запас еды", "придётся закупать еду или охотиться",
+                    () => Farm(map));
+            }
+            if (tick >= nextHunt && Focus.Allows("Food"))
+            {
+                nextHunt = tick + 2500;
+                float f = Utility.FoodPressure(map);
+                Utility.Weigh("hunt", "пометить животных на охоту", 0.20f + f * 0.65f, 0.10f, 0.12f, 1f,
+                    "появится мясо без затрат серебра", "запас еды продолжит падать",
+                    () => { Hunt(map); });
+            }
+            if (tick >= nextMine && Focus.Allows("Mine"))
+            {
+                nextMine = tick + 4000;
+                float st = Utility.SteelPressure(map);
+                Utility.Weigh("mine", "пометить руду и камень на добычу", 0.15f + st * 0.65f, 0.12f, 0.04f, 1f,
+                    "будет сталь и камень для обороны и построек", "стройка встанет из-за нехватки материалов",
+                    () => Mine(map));
+            }
+            if (tick >= nextTame && Focus.Allows("Build"))
+            {
+                nextTame = tick + 6000;
+                Utility.Weigh("tame", "приручить полезных животных", 0.25f, 0.08f, 0.10f, 0.8f,
+                    "животные дадут еду, шерсть и помощь", "колония потеряет дешёвый источник ресурсов",
+                    () => { Tame(map); });
+            }
             if (tick >= nextPrison) { nextPrison = tick + 6000; T.Safe("VanillaPrison", () => Prisoners(map)); }
+            if (Focus.Allows("Storage")) T.Safe("Storage", () => Storage.Run(map, tick));
+            if (Focus.Allows("Research")) T.Safe("Development", () => Development.Run(map, tick));
+            T.Safe("Agriculture", () => Agriculture.Run(map, tick));
+            T.Safe("SurvivalTemplates", () => SurvivalTemplates.Run(map, tick));
+            T.Safe("FoodSafety", () => FoodSafety.Run(map, tick));
+            T.Safe("Deterioration", () => Deterioration.Run(map, tick));
+            T.Safe("Mechanics", () => Mechanics.Run(map, tick));
+            T.Safe("Roofs", () => Roofs.Run(map, tick));
+            T.Safe("Zones", () => Zones.Run(map, tick));
+            T.Safe("Patterns", () => Patterns.Run(map, tick));
         }
 
         // ============================== оборона ==============================
@@ -107,7 +182,7 @@ namespace RimWorldBot.TradeEmpire
             catch { return false; }
         }
 
-        private static void Defense(Map map, int tick)
+        private static void RaidDefense(Map map, int tick)
         {
             if (tick < nextDefense) return;
             nextDefense = tick + 60;
@@ -124,6 +199,8 @@ namespace RimWorldBot.TradeEmpire
             if (cols.Count == 0) return;
 
             IntVec3 rally = Infrastructure.Anchor(map);
+            List<IntVec3> cover = Defense.CoverCells(map);
+            int coverIndex = 0;
             int gunners = 0;
             foreach (Pawn p in cols)
             {
@@ -132,9 +209,10 @@ namespace RimWorldBot.TradeEmpire
                     gunners++;
                     Draft(p);
                     if (p.drafter != null) R.Set(p.drafter, "FireAtWill", true);
-                    bool far = p.Position.DistanceToSquared(rally) > 81f;
+                    IntVec3 pos = cover.Count > 0 ? cover[coverIndex++ % cover.Count] : rally;
+                    bool far = p.Position.DistanceToSquared(pos) > 9f;
                     if (far && p.CurJobDef != JobDefOf.Goto && p.CurJobDef != JobDefOf.AttackStatic)
-                        p.jobs.StartJob(new Job(JobDefOf.Goto, rally), JobCondition.InterruptForced);
+                        p.jobs.StartJob(new Job(JobDefOf.Goto, pos), JobCondition.InterruptForced);
                     continue;
                 }
 
@@ -190,98 +268,182 @@ namespace RimWorldBot.TradeEmpire
             Mind.Think("оборона", "Угроза устранена: снимаю призыв и возвращаю колонистов к работе.");
         }
 
-        /// <summary>Подготовка обороны: мини-турели у базы, если исследование уже есть.</summary>
+        /// <summary>Подготовка обороны: оценка, укрытия, ловушки, стены, турели и крыши.</summary>
         public static void DefensePrep(Map map)
         {
             if (map == null) return;
-            try
-            {
-                int turrets = 0;
-                foreach (Building b in map.listerBuildings.allBuildingsColonist)
-                    if (b.def.defName != null && b.def.defName.StartsWith("Turret_")) turrets++;
-                int cap = 2 + map.mapPawns.FreeColonistsSpawnedCount / 3;
-                if (turrets >= cap) return;
-                ThingDef def = T.Def("Turret_MiniTurret");
-                if (def == null || !Infrastructure.Available(def) || Infrastructure.Exists(map, def)) return;
-                int pending = 0;
-                foreach (Thing t in map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint))
-                    if (t.def.entityDefToBuild == def) pending++;
-                if (pending > 0) return;
-                if (Infrastructure.PlaceNear(map, def, Infrastructure.Anchor(map), 4, 16, false))
-                    Mind.Think("оборона", "Заложил мини-турель: огневая точка рядом с базой.");
-            }
+            try { Defense.Prepare(map); }
             catch (Exception e) { T.Warn("Подготовка обороны: " + e.Message); }
         }
 
         // ============================== еда ==============================
 
+        private class HuntTarget
+        {
+            public Pawn animal;
+            public float risk, reward;
+            public string why;
+        }
+
+        /// <summary>Охота с оценкой риска: хищник ли, шанс ответки, стая, сила, расстояние, взрывчатка.</summary>
         public static int Hunt(Map map)
         {
-            int marked = 0;
             try
             {
+                if (map == null) return 0;
+                TradeSettings s = TradeEmpireMod.S;
+                float riskLimit = U.Clamp(s != null ? s.huntRiskLimit : 0.45f, 0.05f, 0.95f);
+                int maxTargets = Math.Max(1, s != null ? s.huntMaxTargets : 2);
+
+                if (GenHostility.AnyHostileActiveThreatToPlayer(map))
+                {
+                    Mind.Think("охота", "Охоту отложил: на карте активная угроза — сначала оборона, животные подождут.");
+                    return 0;
+                }
+
+                int marked = 0;
                 foreach (Designation d in map.designationManager.AllDesignations) if (d.def == DesignationDefOf.Hunt) marked++;
-                if (marked >= 3) return 0;
+                if (marked >= maxTargets) return 0;
+
+                Pawn hunter = BestHunter(map);
+                if (hunter == null)
+                {
+                    Mind.Think("охота", "Охоту пропустил: нет здорового колониста с оружием, который может идти на зверя.");
+                    return 0;
+                }
+
                 IntVec3 anchor = Infrastructure.Anchor(map);
-                List<Pawn> animals = new List<Pawn>();
+                var targets = new List<HuntTarget>();
+                int tooRisky = 0;
                 foreach (Pawn a in map.mapPawns.AllPawnsSpawned)
                 {
                     if (a == null || !a.Spawned || a.Dead || a.Downed) continue;
                     if (a.RaceProps == null || !a.RaceProps.Animal || !a.RaceProps.IsFlesh) continue;
                     if (a.RaceProps.Insect) continue;
                     if (a.Faction == Faction.OfPlayer || a.HostFaction == Faction.OfPlayer) continue;
-                    if (a.InAggroMentalState) continue;
-                    if (map.designationManager.DesignationOn(a, DesignationDefOf.Hunt) != null) continue;
+                    if (a.InAggroMentalState) continue;                       // уже бешеный — не трогаем
                     if (!a.Position.InHorDistOf(anchor, 55f)) continue;
-                    animals.Add(a);
+                    if (map.designationManager.DesignationOn(a, DesignationDefOf.Hunt) != null) continue;
+
+                    float risk = HuntRisk(a, hunter, map, anchor);
+                    if (risk > riskLimit) { tooRisky++; continue; }
+                    float reward = Math.Max(0.15f, a.BodySize) * (RB(a.RaceProps, "predator", false) ? 1.5f : 1f);
+                    targets.Add(new HuntTarget { animal = a, risk = risk, reward = reward, why = HuntWhy(a, map, anchor) });
                 }
-                animals.Sort((a, b) => a.Position.DistanceToSquared(anchor).CompareTo(b.Position.DistanceToSquared(anchor)));
+
+                // Сначала выгодные и безопасные: много мяса при малом риске.
+                targets.Sort((x, y) => (y.reward / (0.15f + y.risk)).CompareTo(x.reward / (0.15f + x.risk)));
+
                 int made = 0;
-                for (int i = 0; i < animals.Count && made < 2; i++)
+                foreach (HuntTarget t in targets)
                 {
-                    map.designationManager.AddDesignation(new Designation(animals[i], DesignationDefOf.Hunt));
+                    if (made >= maxTargets - marked) break;
+                    map.designationManager.AddDesignation(new Designation(t.animal, DesignationDefOf.Hunt));
                     made++;
+                    Mind.Think("охота", "Охота: " + t.animal.Label + " — риск " + U.Pct(t.risk) + " (" + t.why
+                        + "), мяса ~" + U.F(t.reward) + "; охотник " + hunter.LabelShort
+                        + " (стрельба " + hunter.skills.GetSkill(SkillDefOf.Shooting).Level + ").");
                 }
-                if (made > 0) Mind.Think("еда", "Пометил на охоту животных: " + made + " шт. Мясо нужно для готовки и на зиму.");
+                if (made == 0)
+                    Mind.Think("охота", "Охота: безопасных целей нет — " + tooRisky + " животных выше лимита риска "
+                        + U.Pct(riskLimit) + ". Ждём, пока подойдут ближе или поправятся охотники.");
                 return made;
             }
             catch (Exception e) { T.Warn("Охота: " + e.Message); return 0; }
         }
 
+        /// <summary>Лучший охотник: не ранен, не в панике, не призван, умеет стрелять; оружие — плюс.</summary>
+        private static Pawn BestHunter(Map map)
+        {
+            Pawn best = null; float bestScore = -999f;
+            foreach (Pawn p in map.mapPawns.FreeColonistsSpawned)
+            {
+                if (p == null || p.Dead || p.Downed || p.InMentalState || p.Drafted) continue;
+                if (p.WorkTagIsDisabled(WorkTags.Violent)) continue;
+                if (p.health == null || p.health.summaryHealth.SummaryHealthPercent < 0.55f) continue;
+                int skill = p.skills != null ? p.skills.GetSkill(SkillDefOf.Shooting).Level : 0;
+                bool armed = p.equipment != null && p.equipment.Primary != null;
+                float score = skill + (armed ? 10f : 0f) + p.health.summaryHealth.SummaryHealthPercent * 5f;
+                if (score > bestScore) { bestScore = score; best = p; }
+            }
+            return best;
+        }
+
+        /// <summary>0 — совсем безопасно, 1 — почти верная смерть охотника.</summary>
+        private static float HuntRisk(Pawn a, Pawn hunter, Map map, IntVec3 anchor)
+        {
+            RaceProperties rp = a.RaceProps;
+            bool predator = RB(rp, "predator", false);
+            float manhunter = RF(rp, "manhunterOnDamageChance", 0.05f);   // шанс ответки/бешенства при ранении
+            float wildness = RF(rp, "wildness", 0.35f);
+            float power = RF(a.kindDef, "combatPower", 10f);
+            int shooting = hunter.skills != null ? hunter.skills.GetSkill(SkillDefOf.Shooting).Level : 0;
+            bool armed = hunter.equipment != null && hunter.equipment.Primary != null;
+            float hunterPower = 12f + shooting * 2.5f + (armed ? 12f : -4f);
+
+            float risk = 0f;
+            risk += U.Clamp01(manhunter) * 0.30f;                          // пассивка: чем выше шанс ответки, тем опаснее
+            risk += predator ? 0.28f : 0f;                                 // хищник сам идёт в атаку
+            risk += U.Clamp01(wildness) * 0.08f;
+            risk += U.Clamp01(power / Math.Max(20f, hunterPower)) * 0.22f; // сила зверя против силы охотника
+            risk += U.Clamp01(a.BodySize / 3f) * 0.12f;
+            float dist = a.Position.DistanceTo(anchor);
+            risk += U.Clamp01((dist - 25f) / 35f) * 0.15f;                 // далеко от базы — помощь не придёт
+            int pack = PackSize(a, map);
+            risk += U.Clamp01(pack / 5f) * 0.20f;                          // стая мстит за сородича
+            if (a.def != null && a.def.defName != null && a.def.defName.IndexOf("Boom", StringComparison.OrdinalIgnoreCase) >= 0)
+                risk += 0.55f;                                             // взрывные — отдельная беда
+            if (hunter.health != null) risk += (1f - hunter.health.summaryHealth.SummaryHealthPercent) * 0.20f;
+            if (a.health != null && a.health.summaryHealth.SummaryHealthPercent < 0.6f) risk -= 0.05f; // уже ранен
+            return U.Clamp01(risk);
+        }
+
+        private static string HuntWhy(Pawn a, Map map, IntVec3 anchor)
+        {
+            RaceProperties rp = a.RaceProps;
+            bool predator = RB(rp, "predator", false);
+            float manhunter = RF(rp, "manhunterOnDamageChance", 0.05f);
+            string why = predator ? "хищник" : "пассивный";
+            if (manhunter > 0.02f) why += ", ответка " + U.Pct(manhunter);
+            int pack = PackSize(a, map);
+            if (pack > 0) why += ", стая " + pack;
+            float dist = a.Position.DistanceTo(anchor);
+            if (dist > 25f) why += ", далеко " + (int)dist;
+            if (a.def != null && a.def.defName != null && a.def.defName.IndexOf("Boom", StringComparison.OrdinalIgnoreCase) >= 0) why += ", взрыв";
+            return why;
+        }
+
+        private static int PackSize(Pawn a, Map map)
+        {
+            int n = 0;
+            foreach (Pawn o in map.mapPawns.AllPawnsSpawned)
+                if (o != null && o != a && !o.Dead && !o.Downed && o.def == a.def && o.Position.InHorDistOf(a.Position, 12f)) n++;
+            return n;
+        }
+
+        private static bool RB(object target, string member, bool fallback)
+        {
+            object v = R.Get(target, member);
+            if (v is bool) return (bool)v;
+            if (v == null) return fallback;
+            try { return Convert.ToSingle(v, System.Globalization.CultureInfo.InvariantCulture) > 0.5f; }
+            catch { return fallback; }
+        }
+
+        private static float RF(object target, string member, float fallback)
+        {
+            object v = R.Get(target, member);
+            if (v == null) return fallback;
+            try { return Convert.ToSingle(v, System.Globalization.CultureInfo.InvariantCulture); }
+            catch { return fallback; }
+        }
+
         private static void Farm(Map map)
         {
-            try
-            {
-                int cells = 0;
-                foreach (Zone z in map.zoneManager.AllZones) { Zone_Growing g = z as Zone_Growing; if (g != null) cells += g.cells.Count; }
-                int want = 40 + map.mapPawns.FreeColonistsSpawnedCount * 10;
-                if (cells >= want) return;
-
-                IntVec3 anchor = Infrastructure.Anchor(map);
-                List<IntVec3> pick = new List<IntVec3>();
-                foreach (IntVec3 c in GenRadial.RadialCellsAround(anchor, 20f, true))
-                {
-                    if (!c.InBounds(map) || c.Fogged(map)) continue;
-                    if (map.zoneManager.ZoneAt(c) != null) continue;
-                    if (c.Roofed(map)) continue;
-                    if (map.fertilityGrid.FertilityAt(c) < 0.9f) continue;
-                    bool blocked = false;
-                    foreach (Thing t in map.thingGrid.ThingsAt(c)) if (!t.def.CanOverlapZones) { blocked = true; break; }
-                    if (blocked) continue;
-                    pick.Add(c);
-                    if (pick.Count >= 24) break;
-                }
-                if (pick.Count < 6) return;
-
-                Zone_Growing zone = new Zone_Growing(map.zoneManager);
-                map.zoneManager.RegisterZone(zone);
-                for (int i = 0; i < pick.Count; i++) zone.AddCell(pick[i]);
-                zone.allowSow = true;
-                ThingDef crop = T.Def("Plant_Rice") ?? T.Def("Plant_Potato");
-                if (crop != null) zone.SetPlantDefToGrow(crop);
-                Mind.Think("еда", "Создал грядку на " + pick.Count + " клеток (" + (crop != null ? crop.label : "посевы") + "): теперь есть где выращивать еду.");
-            }
-            catch (Exception e) { T.Warn("Посевы: " + e.Message); }
+            // Вся логика выбора участка, культуры и борьбы с блайтом — в Agriculture.
+            // Здесь оставлен только вызов, чтобы ванильный режим и основной бот
+            // принимали одинаковые решения.
+            Agriculture.Run(map, Find.TickManager != null ? Find.TickManager.TicksGame : 0);
         }
 
         private static void Bills(Map map)
@@ -296,7 +458,12 @@ namespace RimWorldBot.TradeEmpire
                     string n = t.def.defName;
                     if (n == "TableButcher") EnsureBill(t, "ButcherCorpseFlesh", BillRepeatModeDefOf.RepeatCount, 10);
                     else if (n == "ElectricStove" || n == "FueledStove" || n == "Campfire")
-                        EnsureBill(t, pop >= 6 ? "CookMealFine" : "CookMealSimple", BillRepeatModeDefOf.TargetCount, pop * 4 + 6);
+                    {
+                        int meals = pop * 4 + 6;
+                        if (FoodSafety.Last != null && FoodSafety.Last.totalNutrition > 0f && FoodSafety.Last.spoilPct > 0.15f)
+                            meals = Math.Max(pop * 2, Math.Min(meals, pop * 3));
+                        EnsureBill(t, pop >= 6 ? "CookMealFine" : "CookMealSimple", BillRepeatModeDefOf.TargetCount, meals);
+                    }
                     else if (n == "TableStonecutter") EnsureBill(t, "MakeStoneBlocks", BillRepeatModeDefOf.TargetCount, 60);
                     else if (n == "TableMachining") EnsureBill(t, "Make_ComponentIndustrial", BillRepeatModeDefOf.TargetCount, 5);
                 }
@@ -430,7 +597,7 @@ namespace RimWorldBot.TradeEmpire
             IntVec3 min = new IntVec3(center.x - half, 0, center.z - half);
             ThingDef wall = ThingDefOf.Wall;
             ThingDef door = ThingDefOf.Door;
-            ThingDef stuff = T.Count(map, ThingDefOf.WoodLog) >= 40 ? ThingDefOf.WoodLog : (T.Def("BlocksGranite") ?? ThingDefOf.WoodLog);
+            ThingDef stuff = ShelterStuff(map, side <= 7 ? 25 : side <= 9 ? 40 : 55);
             if (wall == null || door == null || stuff == null) return false;
 
             List<IntVec3> wallCells = new List<IntVec3>();
@@ -442,6 +609,7 @@ namespace RimWorldBot.TradeEmpire
                     IntVec3 c = new IntVec3(min.x + x, 0, min.z + z);
                     if (!c.InBounds(map) || c.Fogged(map)) return false;
                     bool edge = x == 0 || z == 0 || x == side - 1 || z == side - 1;
+                    if (!Site.GoodGround(map, c)) return false;
                     if (!edge)
                     {
                         if (c.GetEdifice(map) != null) return false;
@@ -469,6 +637,21 @@ namespace RimWorldBot.TradeEmpire
             return true;
         }
 
+        /// <summary>Материал стен: сначала камень (не горит), потом дерево; запас не тратим под ноль.</summary>
+        private static ThingDef ShelterStuff(Map map, int need)
+        {
+            string[] stone = { "BlocksGranite", "BlocksLimestone", "BlocksSlate", "BlocksSandstone", "BlocksMarble" };
+            foreach (string n in stone)
+            {
+                ThingDef d = T.Def(n);
+                string why;
+                if (d != null && Resources.CanSpend(map, d, need, 1.0f, out why)) return d;
+            }
+            string w;
+            if (Resources.CanSpend(map, ThingDefOf.WoodLog, need, 1.0f, out w)) return ThingDefOf.WoodLog;
+            return null;
+        }
+
         /// <summary>Когда стены готовы — накрываем комнату крышей (ванильная крыша бесплатна, нужна только работа).</summary>
         private static bool RoofIfEnclosed(Map map, IntVec3 center, int side)
         {
@@ -491,12 +674,11 @@ namespace RimWorldBot.TradeEmpire
                 for (int z = 1; z < side - 1; z++)
                 {
                     IntVec3 c = new IntVec3(min.x + x, 0, min.z + z);
-                    if (!c.InBounds(map) || c.Roofed(map)) continue;
-                    map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
-                    changed = true;
+                    if (!c.InBounds(map)) continue;
+                    if (Roofs.RequestRoof(map, c)) changed = true;
                 }
             }
-            if (changed) Mind.Think("быт", "Стены готовы — накрыл комнату крышей. Теперь внутри можно ставить кровати и плиту.");
+            if (changed) Mind.Think("быт", "Стены готовы — попросил колонистов накрыть комнату крышей.");
             return changed;
         }
 

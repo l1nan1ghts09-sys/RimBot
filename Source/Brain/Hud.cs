@@ -82,6 +82,7 @@ namespace RimWorldBot.TradeEmpire
             {
                 Head(v, ref y, "Главное сейчас");
                 y += Label(v, y, Mind.Headline, 0);
+                y += Label(v, y, Focus.Line, 0);
                 y += Label(v, y, Reflect.CausesLine(w), 0);
                 y += 4f;
 
@@ -103,6 +104,7 @@ namespace RimWorldBot.TradeEmpire
                     + "Еда: " + U.F(w.foodDays) + " дн. (" + U.Sign(w.foodTrend) + "/дн.), с урожаем " + U.F(w.foodDaysWithCrops) + ".", 0);
                 y += Label(v, y, "Угроза: " + (w.threat ? w.hostiles + " врагов, сила " + U.Pct(w.threatRatio) : "нет")
                     + ". Риск рейда " + U.Pct(w.baseRisk) + ". Оборона: турелей " + w.turrets + ", ловушек " + w.traps + ".", 0);
+                y += Label(v, y, Defense.StatusShort, 0);
                 y += Label(v, y, "Здоровье " + U.Pct(w.healthScore) + ", настроение " + U.Pct(w.moodAvg) + ", отдых " + U.Pct(w.restMin)
                     + ", лекарств " + w.medicine + ".", 0);
                 y += Label(v, y, "Энергия " + (int)w.powerCapacity + "/" + (int)w.powerDemand + " Вт (дефицит " + (int)w.powerDeficit + "), "
@@ -193,6 +195,47 @@ namespace RimWorldBot.TradeEmpire
                     + ", критично: " + (brain.Current.critical ? "да" : "нет") + ".", 0);
             }
             else y += Label(v, y, "Цель ещё не выбрана.", 0);
+            y += 6f;
+
+            Head(v, ref y, "Фокус и порядок задач");
+            y += Label(v, y, Focus.Line + ". Сейчас бот ведёт одну главную задачу, остальные — только по необходимости.", 0);
+            y += Label(v, y, "Взвешенных решений: " + Utility.Recent.Count + ", принято " + Utility.AcceptedCount
+                + ". Перед действием бот считает пользу, цену, риск и срочность.", 0);
+            y += 4f;
+
+            Head(v, ref y, "Последние решения");
+            y += Label(v, y, Utility.Summary(8), 0);
+            y += 4f;
+
+            Head(v, ref y, "Место базы и ресурсы");
+            y += Label(v, y, Site.Line(w.map), 0);
+            y += Label(v, y, Resources.BudgetLine(w.map), 0);
+            y += Label(v, y, BuildValue.Line(w.map), 0);
+            y += 4f;
+
+            Head(v, ref y, "Хранение, порча и механики");
+            y += Label(v, y, FoodSafety.Line(w.map), 0);
+            y += Label(v, y, Agriculture.Line(w.map), 0);
+            y += Label(v, y, SurvivalTemplates.Line(w.map), 0);
+            y += Label(v, y, Deterioration.Line(w.map), 0);
+            y += Label(v, y, Storage.StatusLine(w.map), 0);
+            y += Label(v, y, Mechanics.Line(w.map), 0);
+            y += Label(v, y, Roofs.Line(w.map), 0);
+            y += Label(v, y, Zones.Line(w.map), 0);
+            y += Label(v, y, Patterns.Line(w.map), 0);
+            y += Label(v, y, Housing.Line(w.map), 0);
+            y += Label(v, y, AutoClose.Line(), 0);
+            y += 4f;
+
+            Head(v, ref y, "Оборона базы");
+            y += Label(v, y, Defense.StatusDetail, 0);
+            Defense.Report dr = Defense.Last;
+            if (dr != null)
+            {
+                y += Label(v, y, "Тактика: " + dr.tactic + ". Укрытий " + dr.cover + ", стен " + dr.walls
+                    + ", турелей " + dr.turrets + ", ловушек " + dr.traps + ", крытых клеток " + dr.roofed
+                    + ", бойцов " + dr.fighters + " (стрелков " + dr.gunners + "), лекарств " + dr.medicine + ".", 0);
+            }
             y += 6f;
 
             Head(v, ref y, "План обучения на сегодня");

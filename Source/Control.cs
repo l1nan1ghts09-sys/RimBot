@@ -23,6 +23,7 @@ namespace RimWorldBot.TradeEmpire
             var s = TradeEmpireMod.S;
             if (s == null || !s.enabled || Event.current == null || Event.current.type != EventType.Repaint) return;
             float now = Time.realtimeSinceStartup;
+            if (s.visitorTrade) T.Safe("TradeUI", AutoTrader.OnGUI);
             if (s.autoControl && now >= nextDialog) { nextDialog = now + 1f; T.Safe("Dialogs", HandleDialogs); }
             if (s.autoSpeed && now >= nextSpeed) { nextSpeed = now + 2f; T.Safe("Speed", ApplySpeed); }
         }
@@ -98,11 +99,11 @@ namespace RimWorldBot.TradeEmpire
             if (threat) lastThreat = now;
 
             TimeSpeed target;
-            if (threat || now - lastThreat < 10f) target = TimeSpeed.Normal;
+            if (threat || now - lastThreat < 4f) target = TimeSpeed.Normal;
             else
             {
                 bool allAsleep = cols.Count > 0 && cols.All(p => p.jobs != null && p.jobs.curDriver != null && p.jobs.curDriver.asleep);
-                int level = Mathf.Clamp(s.calmSpeed, 1, 3);
+                int level = s.fastSpeed ? 3 : Mathf.Clamp(s.calmSpeed, 1, 3);
                 if (allAsleep) level = 3;
                 target = level == 1 ? TimeSpeed.Normal : level == 2 ? TimeSpeed.Fast : TimeSpeed.Superfast;
             }
@@ -118,12 +119,56 @@ namespace RimWorldBot.TradeEmpire
     public static class Quests
     {
         private static readonly HashSet<int> decided = new HashSet<int>();
-        private static readonly string[] Safe = { "Joiner", "Refugee", "Wanderer", "Hospitality_Refugee", "ThreatReward" };
+        private static readonly string[] Safe = { "Joiner", "Refugee", "Wanderer", "Hospitality", "ThreatReward", "ItemStash", "TradeRequest" };
+
+        /// <summary>Письма-предложения квестов: принимаем безопасные прямо кнопкой Accept, чтобы они не висели в стеке.</summary>
+        private static void AcceptLetters(List<Pawn> cols)
+        {
+            try
+            {
+                foreach (Letter l in Find.LetterStack.LettersListForReading.ToList())
+                {
+                    string tn = l.GetType().Name;
+                    if (tn.IndexOf("Quest", StringComparison.OrdinalIgnoreCase) < 0
+                        && tn.IndexOf("Choice", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    Quest q = R.Get(l, "quest") as Quest;
+                    if (q == null || q.State != QuestState.NotYetAccepted || q.Historical) continue;
+                    if (!decided.Add(q.id)) continue;
+                    string root = q.root != null ? q.root.defName : "?";
+                    bool safe = Safe.Any(w => root.Contains(w));
+                    if (!safe)
+                    {
+                        Mind.Think("квест", "Письмо «" + q.name + "» (" + root + ") не принимаю: нужен караван или риск неизвестен.");
+                        continue;
+                    }
+                    Pawn who = cols.OrderByDescending(p => p.GetStatValue(StatDefOf.NegotiationAbility, true)).First();
+                    bool ok = InvokeLetter(l, "Accept");
+                    if (!ok) { try { q.Accept(who); ok = true; } catch { } }
+                    if (ok) Mind.Think("квест", "Принял квест «" + q.name + "» через письмо: безопасный тип " + root + ", колонистов " + cols.Count + ".");
+                }
+            }
+            catch (Exception e) { T.Warn("Квестовые письма: " + e.Message); }
+        }
+
+        private static bool InvokeLetter(object letter, string method)
+        {
+            if (letter == null) return false;
+            try
+            {
+                MethodInfo m = letter.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, Type.EmptyTypes, null);
+                if (m == null) return false;
+                m.Invoke(letter, null);
+                return true;
+            }
+            catch { return false; }
+        }
 
         public static void Run(Map map)
         {
             var cols = map.mapPawns.FreeColonistsSpawned.ToList();
             if (cols.Count == 0) return;
+            AcceptLetters(cols);
             foreach (Quest q in Find.QuestManager.questsInDisplayOrder.ToList())
             {
                 if (q.State != QuestState.NotYetAccepted || q.hidden || q.Historical) continue;
@@ -131,7 +176,7 @@ namespace RimWorldBot.TradeEmpire
                 string root = q.root != null ? q.root.defName : "?";
                 string name = q.name;
                 bool safe = Safe.Any(w => root.Contains(w));
-                bool strong = cols.Count >= 5;
+                bool strong = cols.Count >= 3;
                 if (safe && strong)
                 {
                     Pawn who = cols.OrderByDescending(p => p.GetStatValue(StatDefOf.NegotiationAbility, true)).First();
@@ -139,7 +184,7 @@ namespace RimWorldBot.TradeEmpire
                     Mind.Think("квест", "Принял квест «" + name + "» (" + root + "): выполним на карте, колонистов " + cols.Count + ".");
                 }
                 else
-                    Mind.Think("квест", "Пропускаю «" + name + "» (" + root + "): " + (safe ? "колония слишком слаба (<5 человек)" : "нужен караван или риск неизвестен") + ".");
+                    Mind.Think("квест", "Пропускаю «" + name + "» (" + root + "): " + (safe ? "колония слишком слаба (<3 человек)" : "нужен караван или риск неизвестен") + ".");
             }
         }
     }

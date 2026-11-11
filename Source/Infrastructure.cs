@@ -12,7 +12,7 @@ namespace RimWorldBot.TradeEmpire
     {
         private static int lastBench;
 
-        public static void ResetRuntime() { lastBench = 0; }
+        public static void ResetRuntime() { lastBench = 0; Site.ResetRuntime(); }
 
         public static void Run(Map map)
         {
@@ -41,14 +41,17 @@ namespace RimWorldBot.TradeEmpire
             }
             if (bestDef != null && best > 0f)
             {
+                BuildValue.Evaluation ev = BuildValue.Evaluate(map, bestDef);
+                if (ev.score < 0f) return;
                 lastBench = tick;
                 if (PlaceNear(map, bestDef, Anchor(map), 3, 28, true))
-                    T.Info("Строю верстак для прибыльного производства: " + bestDef.label);
+                    T.Info("Строю верстак: " + bestDef.label + ". " + ev.Line);
             }
         }
 
         public static bool Available(ThingDef d)
         {
+            if (d == null || d.blueprintDef == null) return false;   // спальное место и подобное ставится без чертежа
             if (d.researchPrerequisites != null && d.researchPrerequisites.Any(r => !r.IsFinished)) return false;
             return d.designationCategory != null;
         }
@@ -70,9 +73,7 @@ namespace RimWorldBot.TradeEmpire
         {
             var beds = map.listerBuildings.allBuildingsColonist.OfType<Building_Bed>().ToList();
             if (beds.Count > 0) return new IntVec3((int)beds.Average(b => b.Position.x), 0, (int)beds.Average(b => b.Position.z));
-            var cols = map.mapPawns.FreeColonistsSpawned.ToList();
-            if (cols.Count > 0) return cols[0].Position;
-            return map.Center;
+            return Site.Center(map);
         }
 
         private static IntVec3 StockpileCenter(Map map)
@@ -85,15 +86,25 @@ namespace RimWorldBot.TradeEmpire
 
         public static bool PlaceNear(Map map, ThingDef def, IntVec3 center, int minR, int maxR, bool indoors)
         {
+            if (def == null || def.blueprintDef == null) return false;   // без чертежа строить нельзя
+            try { return PlaceNearInner(map, def, center, minR, maxR, indoors); }
+            catch (Exception e) { T.Warn("Чертёж «" + (def != null ? def.label : "?") + "» не заложен: " + e.Message); return false; }
+        }
+
+        private static bool PlaceNearInner(Map map, ThingDef def, IntVec3 center, int minR, int maxR, bool indoors)
+        {
             ThingDef stuff = def.MadeFromStuff ? GenStuff.DefaultStuffFor(def) : null;
+            string why;
+            if (Resources.BuildCost(map, def, stuff, 1) > 150f && !Resources.CanAfford(map, def, stuff, 1, 0.7f, out why)) return false;
             bool needsPower = def.GetCompProperties<CompProperties_Power>() != null;
             for (int r = minR; r <= maxR; r++)
             {
                 foreach (IntVec3 c in GenRadial.RadialCellsAround(center, r, true).Where(x => Math.Abs((x - center).LengthManhattan - r) <= 1))
                 {
-                    if (!c.InBounds(map) || !c.Standable(map) || c.Fogged(map)) continue;
+                    if (!Site.GoodGround(map, c)) continue;
                     if (indoors && !c.Roofed(map)) continue;
-                    if (map.areaManager.Home != null && !map.areaManager.Home[c]) continue;
+                    // Стройка идёт вокруг выбранного места базы, а не только в старой Home-зоне:
+                    // иначе дом, кровати и верстаки не встанут на хорошем рельефе.
                     Rot4 rot = Rot4.South;
                     if (!GenConstruct.CanPlaceBlueprintAt(def, c, rot, map, false, null, null, stuff).Accepted) continue;
                     if (def.hasInteractionCell)

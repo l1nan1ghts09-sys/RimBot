@@ -13,7 +13,6 @@ namespace RimWorldBot.TradeEmpire
         public int lastDealTick;
         private int nextRun;
         private int step;
-        private int dialogSeenTick = -1;
         private Dictionary<int, int> lastTradedShip = new Dictionary<int, int>();
         private List<int> shipKeys, shipVals;
         public Dictionary<string, int> soldByDef = new Dictionary<string, int>();
@@ -49,6 +48,13 @@ namespace RimWorldBot.TradeEmpire
             if (TradeEmpireMod.S == null || TradeEmpireMod.S.economyLearning) Knowledge.ObserveSale(def.defName, count);
         }
 
+        public override void GameComponentOnGUI()
+        {
+            // Панель «Мозг» может быть выключена, но закрывать окна и уведомления бот должен всегда.
+            TradeSettings st = TradeEmpireMod.S;
+            if (st != null && st.enabled && !st.brain) T.Safe("AutoClose", AutoClose.OnGUI);
+        }
+
         public override void GameComponentTick()
         {
             var s = TradeEmpireMod.S;
@@ -63,24 +69,36 @@ namespace RimWorldBot.TradeEmpire
                 if (home != null) T.Safe("Vanilla", () => Vanilla.Run(home, tick));
             }
 
-            // Открытое окно торговли (караван/гость/кем-то открытое): исполняем сделку сами.
-            if (s.visitorTrade) T.Safe("OpenDialog", () => AutoTrader.HandleOpenDialog(ref dialogSeenTick));
-
             if (tick < nextRun) return;
             nextRun = tick + Math.Max(120, s.runInterval);
             if (!T.BotAllows()) return;
             Map map = Find.AnyPlayerHomeMap;
             if (map == null || map.mapPawns.FreeColonistsSpawnedCount == 0) return;
+            T.Safe("Focus", () => Focus.Run(map, tick));
 
-            if (s.orbitalTrade) T.Safe("Orbital", () => OrbitalTrade(map));
-            if (s.visitorTrade) T.Safe("Visitors", () => VisitorTrade(map));
+            if (s.orbitalTrade) Utility.Weigh("orbital", "торговать с орбитальным кораблём", 0.55f, 0.05f, 0.04f, 1f,
+                "колония получит нужные товары и сбудет лишнее", "товары останутся на складе, а нужное придётся добывать",
+                () => OrbitalTrade(map));
+            if (s.visitorTrade) Utility.Weigh("visitor", "торговать с гостем или караваном", 0.50f, 0.05f, 0.04f, 1f,
+                "обмен без затрат на караван", "гость уйдёт, не продав нужное",
+                () => VisitorTrade(map));
 
             step++;
             switch (step % 3)
             {
-                case 0: if (s.infrastructure) T.Safe("Infra", () => Infrastructure.Run(map)); break;
-                case 1: if (s.production) T.Safe("Production", () => Planner.Run(map)); break;
-                case 2: if (s.researchBoost) T.Safe("Research", ResearchBoost.InjectPriorities); break;
+                case 0:
+                    if (s.infrastructure && Focus.Allows("Trade"))
+                        Utility.Weigh("infra", "построить связь, маяк или верстак", 0.55f, 0.12f, 0.03f, 1f,
+                            "появится инфраструктура для торговли и крафта", "торговля и производство останутся без базы",
+                            () => Infrastructure.Run(map));
+                    break;
+                case 1:
+                    if (s.production && Focus.Allows("Craft"))
+                        Utility.Weigh("production", "обновить прибыльные задания", 0.50f, 0.06f, 0.02f, 1f,
+                            "верстаки будут приносить товар и серебро", "производство простоит без заданий",
+                            () => Planner.Run(map));
+                    break;
+                case 2: if (s.researchBoost) T.Safe("Research", () => ResearchBoost.InjectPriorities()); break;
             }
         }
 

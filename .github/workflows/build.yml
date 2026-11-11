@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ "arena/f1bb1304-rimbot" ]
+    branches: [ "arena/9ced95f9-rimbot" ]
     paths:
       - "Source/**"
       - "RimWorldBot.TradeEmpire.CI.csproj"

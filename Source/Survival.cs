@@ -11,10 +11,15 @@ namespace RimWorldBot.TradeEmpire
     /// <summary>Заменяет встроенные «энергетику» и «приоритеты работ» бота, исправляя их известные проблемы.</summary>
     public static class Survival
     {
-        private static int nextPower, nextWork;
+        private static int nextPower, nextWork, nextSurvival;
         private static bool announced;
 
-        public static void ResetRuntime() { nextPower = 0; nextWork = 0; announced = false; WorkGovernor.ResetRuntime(); }
+        public static void ResetRuntime()
+        {
+            nextPower = 0; nextWork = 0; nextSurvival = 0; announced = false;
+            WorkGovernor.ResetRuntime();
+            SurvivalTemplates.ResetRuntime();
+        }
 
         public static void Run(Map map, int tick)
         {
@@ -31,6 +36,7 @@ namespace RimWorldBot.TradeEmpire
             T.Safe("Release", () => ThreatFix.ReleaseColonists(map, tick));
             if (tick >= nextPower) { nextPower = tick + 1200; T.Safe("Power", () => PowerManager.Run(map)); }
             if (tick >= nextWork) { nextWork = tick + 1500; T.Safe("Work", () => WorkGovernor.Run(map)); }
+            if (tick >= nextSurvival) { nextSurvival = tick + 1800; T.Safe("SurvivalTemplates", () => SurvivalTemplates.Run(map, tick)); }
         }
     }
 
@@ -183,37 +189,93 @@ namespace RimWorldBot.TradeEmpire
             // Состояние колонии -> срочность видов работ
             float nut = 0;
             foreach (ThingDef d in DefDatabase<ThingDef>.AllDefsListForReading)
-                if (d.IsNutritionGivingIngestible && !d.IsDrug && d.category == ThingCategory.Item)
+                if (CountsAsHumanFood(d))
                     nut += T.Count(map, d) * d.GetStatValueAbstract(StatDefOf.Nutrition);
             float foodDays = nut / Math.Max(1f, cols.Count * 2.6f);
             int injured = cols.Count(p => p.health.HasHediffsNeedingTend() || p.Downed);
             int build = map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).Count(t => t.Faction == Faction.OfPlayer)
                       + map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingFrame).Count(t => t.Faction == Faction.OfPlayer);
-            bool farm = map.zoneManager.AllZones.OfType<Zone_Growing>().Any();
+            int damaged = map.listerBuildings.allBuildingsColonist.Count(b => b.def.useHitPoints
+                && b.MaxHitPoints > 0 && b.HitPoints < b.MaxHitPoints * 0.9f);
+            Agriculture.Report farm = null;
+            try { farm = Agriculture.Analyze(map); } catch { }
+            int farmCells = farm != null ? farm.cells : 0;
+            int sowCells = farm != null ? farm.sow : 0;
+            int ripeCells = farm != null ? farm.ripe : 0;
+            int blighted = farm != null ? farm.blighted : 0;
+            float farmFertility = farm != null ? farm.avgFertility : 0f;
+            int farmTarget = farm != null ? farm.target : 0;
+            if (farm == null)
+            {
+                foreach (Zone z in map.zoneManager.AllZones)
+                {
+                    Zone_Growing g = z as Zone_Growing;
+                    if (g == null) continue;
+                    farmCells += g.cells.Count;
+                    foreach (IntVec3 c in g.cells)
+                    {
+                        Plant plant = c.GetPlant(map);
+                        if (plant == null || plant.Destroyed) sowCells++;
+                        else if (plant.HarvestableNow) ripeCells++;
+                    }
+                }
+            }
+            int meals = 0;
+            foreach (Thing t in map.listerThings.AllThings)
+                if (t != null && t.def != null && t.def.defName != null && !t.IsForbidden(Faction.OfPlayer)
+                    && t.def.defName.IndexOf("Meal", StringComparison.OrdinalIgnoreCase) >= 0)
+                    meals += t.stackCount;
+            float temp = 20f;
+            try { temp = map.mapTemperature.OutdoorTemp; } catch { }
+            bool cold = temp < 3f || (farm != null && farm.winter);
+            bool hot = temp > 36f;
+            int cutPending = map.designationManager.AllDesignations.Count(d => d.def == DesignationDefOf.CutPlant);
             bool prisoners = map.mapPawns.PrisonersOfColonySpawned.Any();
             int wood = T.Count(map, ThingDefOf.WoodLog);
             int steel = T.Count(map, ThingDefOf.Steel);
             int meds = T.Count(map, ThingDefOf.MedicineIndustrial) + T.Count(map, ThingDefOf.MedicineHerbal);
+            int craftBills = 0;
+            foreach (Building_WorkTable t in map.listerBuildings.allBuildingsColonist.OfType<Building_WorkTable>())
+                if (t.BillStack != null) craftBills += t.BillStack.Bills.Count;
             bool research = false;
             try { research = Find.ResearchManager != null && R.Get(Find.ResearchManager, "currentProj") != null; } catch { }
+
+            float growUrg = farmCells == 0 ? 0.55f : ripeCells > 0 ? 1.0f : sowCells > 0 ? (foodDays < 10f ? 1.0f : 0.85f) : 0.45f;
+            if (blighted > 0) growUrg = 1.0f;
+            if (farmCells == 0 && farmTarget > 0) growUrg = Mathf.Max(growUrg, 0.8f);
+            if (farmCells == 0 && foodDays < 8f) growUrg = Mathf.Max(growUrg, 0.85f);
+            if (farmTarget > 0 && farmCells < farmTarget && foodDays < 12f) growUrg = Mathf.Max(growUrg, 0.9f);
+
+            float cook = foodDays < 4f ? 1.0f : foodDays < 10f ? 0.85f : 0.6f;
+            if (meals < cols.Count * 2 && nut > 0f) cook = Mathf.Max(cook, 0.9f);
+            if (farm != null && farm.foodDays < 4f) cook = 1.0f;
+
+            float tailor = cold ? 0.85f : craftBills > 0 ? 0.65f : 0.3f;
+            float construct = build > 0 || cold ? 0.85f : 0.35f;
+            float cut = foodDays < 3f || wood < 120 || cutPending > 0 || cold ? 0.85f : 0.25f;
 
             var urg = new Dictionary<string, float>
             {
                 { "Doctor", injured > 0 ? 1.0f : 0.45f },
-                { "Cooking", foodDays < 4 ? 1.0f : foodDays < 10 ? 0.85f : 0.6f },
-                { "Growing", !farm ? 0.55f : foodDays < 8 ? 0.95f : 0.7f },
-                { "PlantCutting", foodDays < 3 || wood < 80 ? 0.8f : 0.25f },
-                { "Hunting", foodDays < 4 ? 0.8f : 0.1f },
-                { "Construction", build > 0 ? 0.8f : 0.35f },
-                { "Hauling", foodDays < 3 ? 0.75f : 0.5f },
+                { "Cooking", cook },
+                { "Growing", growUrg },
+                { "PlantCutting", cut },
+                { "Hunting", foodDays < 4f ? 0.85f : cold && foodDays < 10f ? 0.5f : 0.1f },
+                { "Construction", construct },
+                { "Repair", damaged > 0 ? 0.85f : 0.10f },
+                { "Hauling", foodDays < 3f ? 0.8f : 0.5f },
                 { "Mining", steel < 200 ? 0.55f : 0.3f },
                 { "Research", research ? 0.55f : 0.3f },
-                { "Smithing", steel > 200 ? 0.3f : 0.15f },
-                { "Tailoring", 0.3f }, { "Crafting", 0.25f }, { "Art", 0.08f }, { "Cleaning", 0.28f },
+                { "Smithing", craftBills > 0 ? 0.65f : steel > 200 ? 0.3f : 0.15f },
+                { "Tailoring", tailor },
+                { "Crafting", craftBills > 0 ? 0.85f : 0.25f }, { "Art", 0.08f }, { "Cleaning", 0.28f },
                 { "Warden", prisoners ? 0.5f : 0.05f }, { "Handling", 0.3f }, { "Childcare", 0.4f },
                 { "BasicWorker", 0.35f }
             };
-            if (meds < 8) urg["Crafting"] = 0.4f;
+            if (meds < 8) urg["Crafting"] = Mathf.Max(urg["Crafting"], 0.55f);
+            // Фокус: важные работы получают вес выше, остальные ниже — колонист не мечется.
+            foreach (string key in urg.Keys.ToList())
+                urg[key] = Mathf.Clamp01(urg[key] * Focus.WeightFor(key));
 
             // Базовые «всегда 1»
             string[] always = { "Firefighter", "Patient", "PatientBedRest" };
@@ -238,7 +300,7 @@ namespace RimWorldBot.TradeEmpire
             {
                 var ranked = scores[p];
                 for (int i = 0; i < ranked.Count; i++)
-                    p.workSettings.SetPriority(ranked[i].Key, i < 2 ? 1 : i < 5 ? 2 : i < 9 ? 3 : 4);
+                    p.workSettings.SetPriority(ranked[i].Key, i < 1 ? 1 : i < 3 ? 2 : i < 6 ? 3 : 4);
             }
 
             // Жизненно важное должно быть закрыто: хотя бы один колонист с приоритетом ≤2.
@@ -253,12 +315,75 @@ namespace RimWorldBot.TradeEmpire
                 Mind.Think("работа", best.LabelShort + " назначен на «" + wt.labelShort + "» (приоритет 1): никто не закрывал жизненно важную работу.");
             }
 
+            // Посадка зависит от задач: к посеву, к сбору урожая или всё уже засеяно.
+            if (farmCells > 0 && (sowCells > 0 || ripeCells > 0))
+            {
+                WorkTypeDef grow = WorkTypeDefOf.Growing;
+                if (grow != null)
+                {
+                    int need = Mathf.Clamp(1 + (sowCells + ripeCells) / 30, 1, Mathf.Max(1, cols.Count / 2));
+                    var growers = cols.Where(p => !p.WorkTypeIsDisabled(grow))
+                                      .OrderByDescending(p => p.skills.AverageOfRelevantSkillsFor(grow))
+                                      .ToList();
+                    for (int i = 0; i < growers.Count; i++)
+                    {
+                        int pr = i < need ? 1 : Math.Max(2, growers[i].workSettings.GetPriority(grow));
+                        growers[i].workSettings.SetPriority(grow, pr);
+                    }
+                }
+            }
+
+            // Назначение специалистов под текущую задачу развития.
+            if (research) Specialist(cols, WT("Research"));
+            if (injured > 0) Specialist(cols, WT("Doctor"));
+            if (foodDays < 4f || (meals < cols.Count * 2 && nut > 0f)) Specialist(cols, WT("Cooking"));
+            if (build > 0 || cold || Defense.WantsBuilders) Specialist(cols, WT("Construction"));
+            if (damaged > 0) Specialist(cols, WT("Repair"));
+            if (craftBills > 0) Specialist(cols, WT("Crafting"));
+            if (sowCells > 0 || ripeCells > 0 || blighted > 0) Specialist(cols, WT("Growing"));
+            if (cold || wood < 120) Specialist(cols, WT("PlantCutting"));
+            if (cold) Specialist(cols, WT("Tailoring"));
+
             if (tickOfSummary == -1 || Find.TickManager.TicksGame - tickOfSummary > 6000)
             {
                 tickOfSummary = Find.TickManager.TicksGame;
+                string farmInfo = farmCells > 0
+                    ? ", грядок " + farmCells + "/" + farmTarget + " кл. (посеять " + sowCells + ", собрать " + ripeCells
+                        + ", блайт " + blighted + ", плодородие " + Soil.Percent(farmFertility) + ")"
+                    : ", грядок нет";
                 Mind.Think("работа", "Приоритеты: еда " + foodDays.ToString("0.0") + " дн., раненых " + injured + ", строек " + build
-                    + ", дерева " + wood + ", стали " + steel + ". Каждому максимум 2 вида работ с приоритетом 1.");
+                    + ", дерева " + wood + ", стали " + steel + ", повреждено построек " + damaged + farmInfo
+                    + ". Каждому максимум 2 вида работ с приоритетом 1.");
             }
+        }
+
+        private static bool CountsAsHumanFood(ThingDef d)
+        {
+            if (d == null || d.ingestible == null || d.IsDrug || d.IsCorpse) return false;
+            FoodTypeFlags ft = d.ingestible.foodType;
+            if ((ft & FoodTypeFlags.Kibble) != 0) return false;
+            if ((ft & FoodTypeFlags.Tree) != 0) return false;
+            // Сырые овощи люди тоже едят; сено и киббл — нет. Это важно для реального
+            // запаса дней: иначе бот паникует из-за «пустой» кладовой при полной грядке риса.
+            string n = d.defName != null ? d.defName.ToLowerInvariant() : "";
+            if (n.Contains("hay") || n.Contains("silage")) return false;
+            return d.IsNutritionGivingIngestible && d.category == ThingCategory.Item;
+        }
+
+        private static WorkTypeDef WT(string name)
+        {
+            return DefDatabase<WorkTypeDef>.GetNamedSilentFail(name);
+        }
+
+        /// <summary>Если за работу никто не отвечает приоритетом 1 — назначаем лучшего по навыку.</summary>
+        private static void Specialist(List<Pawn> cols, WorkTypeDef wt)
+        {
+            if (wt == null) return;
+            if (cols.Any(p => !p.WorkTypeIsDisabled(wt) && p.workSettings.GetPriority(wt) == 1)) return;
+            Pawn best = cols.Where(p => !p.WorkTypeIsDisabled(wt))
+                            .OrderByDescending(p => p.skills.AverageOfRelevantSkillsFor(wt))
+                            .FirstOrDefault();
+            if (best != null) best.workSettings.SetPriority(wt, 1);
         }
 
         private static void Set(Pawn p, string def, int pr)

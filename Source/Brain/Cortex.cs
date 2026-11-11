@@ -60,7 +60,13 @@ namespace RimWorldBot.TradeEmpire
             Planner.ResetRuntime();
             Watchdog.ResetRuntime();
             Survival.ResetRuntime();
+            Agriculture.ResetRuntime();
+            SurvivalTemplates.ResetRuntime();
             Vanilla.ResetRuntime();
+            Roofs.ResetRuntime();
+            Zones.ResetRuntime();
+            Patterns.ResetRuntime();
+            Housing.ResetRuntime();
             Infrastructure.ResetRuntime();
             ThreatFix.ResetRuntime();
             Skills.ResetRuntime();
@@ -153,6 +159,17 @@ namespace RimWorldBot.TradeEmpire
                 if (world.pop == 0) return;
             }
             if (world == null) return;
+
+            // Порча еды, поля, шаблоны выживания, ветшание вещей и ванильные механики — в обоих режимах.
+            T.Safe("Agriculture", () => Agriculture.Run(map, tick));
+            T.Safe("SurvivalTemplates", () => SurvivalTemplates.Run(map, tick));
+            T.Safe("FoodSafety", () => FoodSafety.Run(map, tick));
+            T.Safe("Deterioration", () => Deterioration.Run(map, tick));
+            T.Safe("Mechanics", () => Mechanics.Run(map, tick));
+            T.Safe("Roofs", () => Roofs.Run(map, tick));
+            T.Safe("Zones", () => Zones.Run(map, tick));
+            T.Safe("Patterns", () => Patterns.Run(map, tick));
+            T.Safe("Housing", () => Housing.Run(map, tick));
 
             // ---- упрощённый режим: только антикризисные модули ----
             if (!s.deepBrain)

@@ -94,6 +94,18 @@ namespace RimWorldBot.TradeEmpire
             Add(new Skill("clean", "Уборка", "быт", GoalId.Clean, 8000, 30000, MetricKind.Mood,
                 w => w != null && w.pop > 1, Clean));
 
+            // --- рельеф, интерфейс и бытовые паттерны ---
+            Add(new Skill("cave_base", "Пещерная база: узкий вход и естественные стены", "быт", GoalId.Housing, 9000, 60000, MetricKind.Defense,
+                w => w != null && w.map != null && (w.caveBase || w.hollowBase), CaveBasePattern));
+            Add(new Skill("fire_safety", "Пожарная безопасность у батарей", "быт", GoalId.Housing, 12000, 90000, MetricKind.Housing,
+                w => w != null && w.map != null && w.map.listerBuildings.allBuildingsColonist.Any(b =>
+                    b != null && b.def != null && b.def.defName != null
+                    && b.def.defName.IndexOf("Battery", StringComparison.OrdinalIgnoreCase) >= 0), FireSafetyPattern));
+            Add(new Skill("roof_clear", "Снять лишнюю крышу с панелей и грядок", "быт", GoalId.Housing, 10000, 60000, MetricKind.Housing,
+                w => w != null && w.map != null && Roofs.NeedsWork(w.map), RoofClear));
+            Add(new Skill("zone_cleanup", "Убрать пустые и дублирующиеся зоны", "быт", GoalId.Housing, 14000, 60000, MetricKind.Housing,
+                w => w != null && w.map != null && Zones.HasObsolete(w.map), ZoneCleanup));
+
             // --- наука ---
             Add(new Skill("research", "Выбор исследования", "наука", GoalId.Research, 1500, 60000, MetricKind.Research,
                 w => w != null && w.researchAvailable > 0, ResearchAdvisor.Step));
@@ -385,11 +397,12 @@ namespace RimWorldBot.TradeEmpire
         {
             Policy.HoldFood = true;
             Crisis.Run(w.map);
-            int wild = 0;
+            int wild = 0, fields = 0;
             try
             {
                 Pawn anchor = w.colonists.FirstOrDefault();
-                if (anchor != null) wild = Opening.DesignateWildFood(w.map, anchor.Position, 20);
+                if (anchor != null) wild = Opening.DesignateWildFood(w.map, anchor.Position, 24);
+                fields = Agriculture.EnsureFields(w.map, true);
             }
             catch { }
             if (Vanilla.Active) Vanilla.Hunt(w.map);
@@ -397,7 +410,8 @@ namespace RimWorldBot.TradeEmpire
             BotBridge.SetBotSetting("autoCutPlants", true);
             BotBridge.SetBotSetting("autoGrowing", true);
             return SkillResult.Yes("Аварийная еда: запас " + U.F(w.foodDays) + " дн., голодают " + w.starving
-                + ". Помечено дикой еды " + wild + ", охота и рубка включены, продажа еды запрещена.", MetricKind.Food, 10000);
+                + ". Помечено дикой еды " + wild + ", грядки +" + fields
+                + ", охота и рубка включены, продажа еды запрещена.", MetricKind.Food, 10000);
         }
 
         private static SkillResult FoodSecurity(ColonyWorld w)
@@ -405,8 +419,12 @@ namespace RimWorldBot.TradeEmpire
             Policy.HoldFood = w.foodDays < 4f;
             BotBridge.SetBotSetting("autoGrowing", true);
             if (w.foodDays < w.foodTargetDays * 0.5f) BotBridge.SetBotSetting("autoHunt", true);
+            int fields = 0;
+            try { fields = Agriculture.EnsureFields(w.map, false); } catch { }
             string msg = "Продовольствие: " + U.F(w.foodDays) + "/" + U.F(w.foodTargetDays) + " дн., с урожаем "
-                + U.F(w.foodDaysWithCrops) + ", тренд " + U.Sign(w.foodTrend) + "/дн. Грядки и готовка в приоритете.";
+                + U.F(w.foodDaysWithCrops) + ", тренд " + U.Sign(w.foodTrend) + "/дн., грядки " + w.farmCells + "/"
+                + Agriculture.Last.target + " кл. (блайт " + w.farmBlighted + ", добавил " + fields
+                + "). Грядки и готовка в приоритете.";
             if (w.foodTrend < -0.2f) msg += " Запас падает — расширяю посевы и запрещаю продажу еды.";
             return SkillResult.Yes(msg, MetricKind.Food, 30000);
         }
@@ -478,6 +496,36 @@ namespace RimWorldBot.TradeEmpire
                 ? "Жильё: кроватей " + w.beds + " на " + w.pop + " — заложил ещё одну."
                 : "Жильё: кроватей " + w.beds + " на " + w.pop + " — проверяю базовые постройки.";
             return SkillResult.Yes(msg, MetricKind.Housing, 60000);
+        }
+
+        private static SkillResult CaveBasePattern(ColonyWorld w)
+        {
+            string msg = Patterns.CavePattern(w.map);
+            return SkillResult.Yes(msg, MetricKind.Defense, 60000);
+        }
+
+        private static SkillResult FireSafetyPattern(ColonyWorld w)
+        {
+            bool ok = Patterns.FireSafety(w.map);
+            return ok
+                ? SkillResult.Yes("Пожарная безопасность: поставил пенную ловушку у батарей.", MetricKind.Housing, 90000)
+                : SkillResult.No("Пожарная безопасность: батареи есть, но подходящее место или материал пока не найдены.");
+        }
+
+        private static SkillResult RoofClear(ColonyWorld w)
+        {
+            int n = Roofs.MarkProblemRoofs(w.map);
+            return n > 0
+                ? SkillResult.Yes("Крыша: снимаю её с " + n + " клеток над панелями/грядками — свет важнее.", MetricKind.Housing, 60000)
+                : SkillResult.No("Крыша: мешающих участков не нашёл.");
+        }
+
+        private static SkillResult ZoneCleanup(ColonyWorld w)
+        {
+            int n = Zones.Cleanup(w.map);
+            return n > 0
+                ? SkillResult.Yes("Зоны: убрал " + n + " пустых/дублирующихся зон.", MetricKind.Housing, 60000)
+                : SkillResult.No("Зоны: устаревших зон нет.");
         }
 
         private static SkillResult Clean(ColonyWorld w)

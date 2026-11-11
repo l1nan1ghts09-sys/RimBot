@@ -27,6 +27,8 @@ namespace RimWorldBot.TradeEmpire
         public bool takeover = true;          // заменить энергетику и приоритеты работ бота своими
         public bool watchdog = true;          // разрыв зацикливаний
         public bool vanillaAuto = true;       // автономный режим без основного бота
+        public bool autoStorage = true;       // склады, настройки хранения и проверка порчи
+        public bool autoDevelopment = true;   // исследования и назначение специалистов для развития
         // ---- 2.0: когнитивное ядро ----
         public bool deepBrain = true;         // цели, планы, прогнозы, рефлексия
         public bool smartResearch = true;     // выбирать исследования по расчётной ценности
@@ -35,7 +37,8 @@ namespace RimWorldBot.TradeEmpire
         public bool verboseWhy = true;        // подробные объяснения решений в панели
         public bool economyLearning = true;   // учиться на фактических сделках
         public float riskTolerance = 0.35f;   // 0 — осторожно, 1 — рискованно
-        public int calmSpeed = 2;             // скорость в спокойствии: 1 обычная, 2 быстрая, 3 сверхбыстрая
+        public int calmSpeed = 3;             // скорость в спокойствии: 1 обычная, 2 быстрая, 3 сверхбыстрая
+        public bool fastSpeed = true;         // всегда сверхбыстрая в спокойствии, даже если ползунок старый
         public int runInterval = 600;         // тиков между проходами
         public int silverReserve = 400;       // не тратить ниже
         public int minDealValue = 200;        // минимальная сумма продаж для сделки
@@ -44,6 +47,27 @@ namespace RimWorldBot.TradeEmpire
         public int maxBillsPerTable = 8;
         public float minSellRatio = 0.30f;    // цена продажи / рыночная; ниже — не продаём
         public float maxBuyRatio = 2.2f;      // цена покупки / рыночная; выше — не покупаем
+        public int minSteel = 300;            // не продавать сталь ниже этого запаса
+        public int minComponents = 20;        // не продавать компоненты ниже запаса
+        public int minMedicine = 12;          // не продавать лекарства ниже запаса
+        public int minFoodDays = 12;          // целевой запас еды в днях для торговли
+        public int maxDealSilver = 4000;      // максимум серебра на одну сделку (0 — без лимита)
+        public float huntRiskLimit = 0.45f;   // макс. допустимый риск охоты (0..1)
+        public int huntMaxTargets = 2;        // сколько животных помечать за раз
+        public bool autoDefense = true;       // оценка обороны, укрытия, ловушки, стены, турели
+        public bool defenseRoofs = true;      // крыша над ключевыми помещениями
+        public int defenseTurretCap = 6;      // максимум турелей
+        public int defenseTrapCap = 8;        // максимум ловушек
+        public bool craftItems = true;        // крафт нужных вещей: оружие, одежда, лекарства, компоненты
+        public bool focusTasks = true;        // одна главная задача за раз, без распыления
+        public bool autoHousing = true;       // строить дом и заселять его
+        public bool autoCloseWindows = true;  // закрывать только оповещения, которые ставят игру на паузу
+        public bool autoCloseNotifications = true; // убирать письма и всплывающие сообщения
+        public bool autoRoofs = true;          // снимать крышу над солнечными панелями/грядками
+        public bool autoZoneCleanup = true;    // убирать пустые и дублирующиеся зоны
+        public bool autoPatterns = true;       // пещерная база, пожарная безопасность и т.п.
+        public bool autoFields = true;         // умный выбор участка под грядки, культура и блайт
+        public bool autoSurvival = true;       // шаблоны выживания: голод, холод, жара, осадки и т.п.
 
         public override void ExposeData()
         {
@@ -60,10 +84,13 @@ namespace RimWorldBot.TradeEmpire
             Scribe_Values.Look(ref autoControl, "autoControl", true);
             Scribe_Values.Look(ref quests, "quests", true);
             Scribe_Values.Look(ref autoSpeed, "autoSpeed", true);
-            Scribe_Values.Look(ref calmSpeed, "calmSpeed", 2);
+            Scribe_Values.Look(ref calmSpeed, "calmSpeed", 3);
+            Scribe_Values.Look(ref fastSpeed, "fastSpeed", true);
             Scribe_Values.Look(ref takeover, "takeover", true);
             Scribe_Values.Look(ref watchdog, "watchdog", true);
             Scribe_Values.Look(ref vanillaAuto, "vanillaAuto", true);
+            Scribe_Values.Look(ref autoStorage, "autoStorage", true);
+            Scribe_Values.Look(ref autoDevelopment, "autoDevelopment", true);
             Scribe_Values.Look(ref deepBrain, "deepBrain", true);
             Scribe_Values.Look(ref smartResearch, "smartResearch", true);
             Scribe_Values.Look(ref adaptiveTakeover, "adaptiveTakeover", true);
@@ -79,6 +106,27 @@ namespace RimWorldBot.TradeEmpire
             Scribe_Values.Look(ref maxBillsPerTable, "maxBillsPerTable", 8);
             Scribe_Values.Look(ref minSellRatio, "minSellRatio", 0.30f);
             Scribe_Values.Look(ref maxBuyRatio, "maxBuyRatio", 2.2f);
+            Scribe_Values.Look(ref minSteel, "minSteel", 300);
+            Scribe_Values.Look(ref minComponents, "minComponents", 20);
+            Scribe_Values.Look(ref minMedicine, "minMedicine", 12);
+            Scribe_Values.Look(ref minFoodDays, "minFoodDays", 12);
+            Scribe_Values.Look(ref maxDealSilver, "maxDealSilver", 4000);
+            Scribe_Values.Look(ref huntRiskLimit, "huntRiskLimit", 0.45f);
+            Scribe_Values.Look(ref huntMaxTargets, "huntMaxTargets", 2);
+            Scribe_Values.Look(ref autoDefense, "autoDefense", true);
+            Scribe_Values.Look(ref defenseRoofs, "defenseRoofs", true);
+            Scribe_Values.Look(ref defenseTurretCap, "defenseTurretCap", 6);
+            Scribe_Values.Look(ref defenseTrapCap, "defenseTrapCap", 8);
+            Scribe_Values.Look(ref craftItems, "craftItems", true);
+            Scribe_Values.Look(ref focusTasks, "focusTasks", true);
+            Scribe_Values.Look(ref autoHousing, "autoHousing", true);
+            Scribe_Values.Look(ref autoCloseWindows, "autoCloseWindows", true);
+            Scribe_Values.Look(ref autoCloseNotifications, "autoCloseNotifications", true);
+            Scribe_Values.Look(ref autoRoofs, "autoRoofs", true);
+            Scribe_Values.Look(ref autoZoneCleanup, "autoZoneCleanup", true);
+            Scribe_Values.Look(ref autoPatterns, "autoPatterns", true);
+            Scribe_Values.Look(ref autoFields, "autoFields", true);
+            Scribe_Values.Look(ref autoSurvival, "autoSurvival", true);
             base.ExposeData();
         }
     }
@@ -99,7 +147,7 @@ namespace RimWorldBot.TradeEmpire
 
         public override void DoSettingsWindowContents(Rect inRect)
         {
-            var view = new Rect(0, 0, inRect.width - 20f, 1500f);
+            var view = new Rect(0, 0, inRect.width - 20f, 2050f);
             Widgets.BeginScrollView(inRect, ref scroll, view);
             var l = new Listing_Standard();
             l.Begin(view);
@@ -118,9 +166,12 @@ namespace RimWorldBot.TradeEmpire
             l.CheckboxLabeled("Авто-выбор в диалогах событий и чистка писем", ref S.autoControl);
             l.CheckboxLabeled("Принимать безопасные квесты", ref S.quests);
             l.CheckboxLabeled("Бот управляет скоростью времени", ref S.autoSpeed);
+            l.CheckboxLabeled("Всегда сверхбыстрая в спокойствии", ref S.fastSpeed);
             l.CheckboxLabeled("Умная энергетика и приоритеты работ", ref S.takeover);
             l.CheckboxLabeled("Разрыв зацикливаний (сторож)", ref S.watchdog);
             l.CheckboxLabeled("Автономный режим: оборона, охота, посевы, добыча", ref S.vanillaAuto);
+            l.CheckboxLabeled("Склады: общий, продуктовый и проверка порчи", ref S.autoStorage);
+            l.CheckboxLabeled("Развитие: исследования и назначение специалистов", ref S.autoDevelopment);
             l.GapLine();
             l.Label("— Когнитивное ядро 2.0 —");
             l.CheckboxLabeled("Глубокий мозг: цели, планы, прогнозы, рефлексия", ref S.deepBrain);
@@ -148,6 +199,36 @@ namespace RimWorldBot.TradeEmpire
             S.minSellRatio = l.Slider(S.minSellRatio, 0.05f, 1f);
             l.Label("Макс. цена покупки / рыночная: " + S.maxBuyRatio.ToString("0.00"));
             S.maxBuyRatio = l.Slider(S.maxBuyRatio, 1f, 4f);
+            l.GapLine();
+            S.minSteel = Slider(l, "Не продавать сталь ниже", S.minSteel, 0, 2000);
+            S.minComponents = Slider(l, "Не продавать компоненты ниже", S.minComponents, 0, 100);
+            S.minMedicine = Slider(l, "Не продавать лекарства ниже", S.minMedicine, 0, 50);
+            S.minFoodDays = Slider(l, "Запас еды для торговли (дней)", S.minFoodDays, 4, 40);
+            S.maxDealSilver = Slider(l, "Лимит серебра на сделку", S.maxDealSilver, 0, 20000);
+            if (l.ButtonText("Закрыть/отменить текущую торговлю")) AutoTrader.CancelTrade();
+            l.GapLine();
+            l.Label("Охота с оценкой риска");
+            l.Label("Макс. риск охоты: " + U.Pct(S.huntRiskLimit) + " (хищник, ответка, стая, расстояние)");
+            S.huntRiskLimit = l.Slider(S.huntRiskLimit, 0.10f, 0.90f);
+            S.huntMaxTargets = Slider(l, "Целей охоты за раз", S.huntMaxTargets, 1, 5);
+            l.GapLine();
+            l.Label("Оборона базы");
+            l.CheckboxLabeled("Авто-оборона: укрытия, ловушки, стены, турели", ref S.autoDefense);
+            l.CheckboxLabeled("Строить крышу над ключевыми помещениями", ref S.defenseRoofs);
+            S.defenseTurretCap = Slider(l, "Лимит турелей", S.defenseTurretCap, 0, 12);
+            S.defenseTrapCap = Slider(l, "Лимит ловушек", S.defenseTrapCap, 0, 20);
+            l.GapLine();
+            l.Label("Производство и порядок");
+            l.CheckboxLabeled("Крафтить нужные вещи (оружие, одежда, лекарства, компоненты)", ref S.craftItems);
+            l.CheckboxLabeled("Одна главная задача за раз (не распыляться)", ref S.focusTasks);
+            l.CheckboxLabeled("Строить дом по ресурсам и задаче", ref S.autoHousing);
+            l.CheckboxLabeled("Закрывать только оповещения с паузой (не меню и не рабочие окна)", ref S.autoCloseWindows);
+            l.CheckboxLabeled("Убирать письма и всплывающие сообщения", ref S.autoCloseNotifications);
+            l.CheckboxLabeled("Снимать крышу над панелями и грядками", ref S.autoRoofs);
+            l.CheckboxLabeled("Убирать пустые и дублирующиеся зоны", ref S.autoZoneCleanup);
+            l.CheckboxLabeled("Умные паттерны: пещера, двери, пожарная защита", ref S.autoPatterns);
+            l.CheckboxLabeled("Умный выбор грядок: плодородие, дорога, компактность, культура", ref S.autoFields);
+            l.CheckboxLabeled("Шаблоны выживания: голод, зима, холод, жара, осадки, блайт", ref S.autoSurvival);
             l.GapLine();
             l.Label(Ledger.Summary());
             l.End();

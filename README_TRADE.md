@@ -1,4 +1,4 @@
-# RimWorldBot 2.1 — обучающийся мозг колонии (vanilla)
+# RimWorldBot 2.7 — обучающийся мозг колонии (vanilla)
 
 Полностью автономный мод для чистого RimWorld 1.6: **без Harmony, без DLC и без других модов**.
 Один мод, одна DLL — `RimWorldBot.TradeEmpire.dll`, вся логика в `Source/`.

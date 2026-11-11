@@ -58,6 +58,20 @@ namespace RimWorldBot.TradeEmpire
             list.Add(new Concern { name = "Энергия", severity = U.Clamp01(w.powerDeficit / Mathf.Max(200f, w.powerDemand * 0.5f)),
                 why = (int)w.powerCapacity + "/" + (int)w.powerDemand + " Вт, дефицит " + (int)w.powerDeficit,
                 doing = w.powerDeficit > 0 ? "один генератор, провода" : "в норме" });
+            try
+            {
+                FoodSafety.Report fs = FoodSafety.Analyze(w.map);
+                if (fs.totalNutrition > 0f && fs.spoilPct > 0.05f)
+                    list.Add(new Concern { name = "Порча еды", severity = U.Clamp01(fs.spoilPct * 1.2f),
+                        why = "сгниёт " + U.Pct(fs.spoilPct) + " запаса, до порчи успеем съесть " + U.F(fs.safeDays) + " дн.",
+                        doing = "крытый холодный склад, доступ к еде и долгий запас" });
+                Deterioration.Report ds = Deterioration.Analyze(w.map);
+                if (ds.count > 0)
+                    list.Add(new Concern { name = "Ветшание вещей", severity = U.Clamp01(ds.count / 8f + (ds.worstDays < 5f ? 0.25f : 0f)),
+                        why = ds.count + " вещей на улице, худшая " + U.Pct(ds.worstHpPct) + " прочности",
+                        doing = "убрать под крышу в склад с приоритетом Critical" });
+            }
+            catch { }
             list.Add(new Concern { name = "Развитие", severity = U.Clamp01(0.55f - w.opportunity * 0.4f),
                 why = "богатство " + (int)w.wealth + " (" + U.Sign(w.wealthTrend) + "/дн.), верстаков " + w.tables + ", заданий " + w.bills,
                 doing = "прибыльные задания, торговля, наука" });
@@ -92,16 +106,17 @@ namespace RimWorldBot.TradeEmpire
             if (s.enabled && s.keepRunning && Find.TickManager.Paused && !Find.WindowStack.WindowsForcePause)
             {
                 if (pausedSince < 0) pausedSince = Time.realtimeSinceStartup;
-                else if (Time.realtimeSinceStartup - pausedSince > 3f)
+                else if (Time.realtimeSinceStartup - pausedSince > 2f)
                 {
-                    Find.TickManager.CurTimeSpeed = TimeSpeed.Fast;
+                    Find.TickManager.CurTimeSpeed = s.fastSpeed || s.calmSpeed >= 3 ? TimeSpeed.Superfast : TimeSpeed.Fast;
                     pausedSince = -1f;
-                    Think("пауза", "Игра стояла на паузе — продолжаю (можно отключить в настройках).");
+                    Think("пауза", "Игра стояла на паузе — продолжаю на высокой скорости (можно отключить в настройках).");
                 }
             }
             else pausedSince = -1f;
 
             T.Safe("Control", Control.OnGUI);
+            T.Safe("AutoClose", AutoClose.OnGUI);
 
             Event e = Event.current;
             if (e != null && e.type == EventType.KeyDown && e.control && e.keyCode == KeyCode.T) { Toggle(); e.Use(); }
@@ -122,6 +137,7 @@ namespace RimWorldBot.TradeEmpire
 
         public static void ResetRuntime()
         {
+            AutoClose.ResetRuntime();
             Log.Clear();
             Concerns.Clear();
             Headline = "";

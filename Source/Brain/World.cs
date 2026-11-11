@@ -42,8 +42,12 @@ namespace RimWorldBot.TradeEmpire
 
         // еда и ресурсы
         public float foodNutrition, growingNutrition, foodDays, foodDaysWithCrops, foodTrend;
+        public float foodSafeDays, foodSpoilPct, foodSpoilNutrition, deteriorationValue;
+        public int outdoorDeteriorating;
         public int medicine, medicinePotency, silver, steel, components, wood, cloth;
         public float wealth, wealthTrend;
+        public Site.Info site;
+        public bool caveBase, hollowBase, poorColony;
 
         // угроза
         public bool threat;
@@ -53,6 +57,9 @@ namespace RimWorldBot.TradeEmpire
         // хозяйство
         public float powerCapacity, powerDemand, powerStored;
         public int beds, tables, tablesWithoutBills, bills, blueprints, frames, growingZones, prisoners, turrets, traps;
+        public int farmCells, farmSow, farmRipe, farmBlighted;
+        public float farmFertility;
+        public bool winter, toxicFallout, coldSnap, heatWave, volcanicWinter, eclipse;
         public float outdoorTemp;
         public string weather = "—", biome = "—";
         public List<string> conditions = new List<string>();
@@ -85,6 +92,10 @@ namespace RimWorldBot.TradeEmpire
 
             w.ReadPeople();
             w.ReadResources();
+            w.site = Site.Best(map);
+            w.caveBase = w.site != null && w.site.cave;
+            w.hollowBase = w.site != null && (w.site.hollow || w.site.pocket);
+            w.poorColony = w.site != null && w.site.poor;
             w.ReadThreat();
             w.ReadEconomy();
             w.ReadContext();
@@ -203,7 +214,8 @@ namespace RimWorldBot.TradeEmpire
                     float n;
                     if (nut.TryGetValue(t.def, out n))
                     {
-                        if (!t.IsForbidden(Faction.OfPlayer)) stored += Mathf.Max(0f, n) * t.stackCount;
+                        if (!t.IsForbidden(Faction.OfPlayer) && FoodSafety.IsHumanFood(t.def))
+                            stored += Mathf.Max(0f, n) * t.stackCount;
                         continue;
                     }
                     float potency;
@@ -221,6 +233,17 @@ namespace RimWorldBot.TradeEmpire
 
             foodNutrition = stored;
             foodDays = stored / Mathf.Max(1f, pop * 2.6f);
+            try
+            {
+                FoodSafety.Report fs = FoodSafety.Analyze(map);
+                foodSafeDays = fs.safeDays;
+                foodSpoilPct = fs.spoilPct;
+                foodSpoilNutrition = fs.spoilNutrition;
+                Deterioration.Report ds = Deterioration.Analyze(map);
+                outdoorDeteriorating = ds.count;
+                deteriorationValue = ds.value;
+            }
+            catch (Exception e) { T.Warn("Прогноз порчи и ветшания: " + e.Message); }
 
             // будущий урожай: то, что уже растёт на грядках
             float growing = 0f;
@@ -369,11 +392,31 @@ namespace RimWorldBot.TradeEmpire
                 prisoners = map.mapPawns.PrisonersOfColonySpawned.Count();
                 conditions.Clear();
                 foreach (GameCondition gc in map.gameConditionManager.ActiveConditions)
-                    if (gc != null && gc.def != null) conditions.Add(gc.def.LabelCap.ToString());
+                {
+                    if (gc == null || gc.def == null) continue;
+                    conditions.Add(gc.def.LabelCap.ToString());
+                    string dn = (gc.def.defName ?? "").ToLowerInvariant();
+                    if (dn.Contains("toxic")) toxicFallout = true;
+                    if (dn.Contains("coldsnap")) coldSnap = true;
+                    if (dn.Contains("heatwave")) heatWave = true;
+                    if (dn.Contains("volcanic")) volcanicWinter = true;
+                    if (dn.Contains("eclipse")) eclipse = true;
+                }
             }
             catch { }
 
             try { outdoorTemp = map.mapTemperature.OutdoorTemp; } catch { outdoorTemp = 20f; }
+            try
+            {
+                Agriculture.Report farm = Agriculture.Analyze(map);
+                farmCells = farm.cells;
+                farmSow = farm.sow;
+                farmRipe = farm.ripe;
+                farmBlighted = farm.blighted;
+                farmFertility = farm.avgFertility;
+                winter = farm.winter;
+            }
+            catch (Exception e) { T.Warn("Обзор полей неполный: " + e.Message); }
             try
             {
                 object cur = R.Get(map.weatherManager, "curWeather");
@@ -452,6 +495,9 @@ namespace RimWorldBot.TradeEmpire
             if (threat && threatRatio > 0.9f) return "Угроза: враги сильнее нас (" + hostiles + " на карте, " + U.Pct(threatRatio) + " от нашей силы).";
             if (foodDays < 2f || starving > 0) return "Голод: еды на " + U.F(foodDays) + " дн., голодающих " + hungry + ".";
             if (downed > 0 || bleeding > 0) return "Медицина: лежачих " + downed + ", кровотечений " + bleeding + ".";
+            if (foodSpoilPct > 0.15f) return "Порча еды: сгниёт " + U.Pct(foodSpoilPct) + " запаса, до порчи успеем съесть "
+                + U.F(foodSafeDays) + " дн. — нужен холод и долгий запас.";
+            if (outdoorDeteriorating > 0) return "Ветшание: " + outdoorDeteriorating + " вещей на улице теряют прочность — убираю под крышу.";
             if (foodDays < foodTargetDays * 0.6f) return "Еда: запас " + U.F(foodDays) + " дн. при цели " + U.F(foodTargetDays) + " — расширяю производство.";
             if (moodUrgency > 0.25f) return "Настроение " + U.Pct(moodAvg) + ": риск срывов, даю отдых.";
             if (powerDeficit > 50f) return "Энергия: не хватает " + (int)powerDeficit + " Вт.";
