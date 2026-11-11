@@ -61,7 +61,12 @@ namespace RimWorldBot.TradeEmpire
             string text = node.text.ToString();
             if (text.Length > 90) text = text.Substring(0, 90) + "…";
             Mind.Think("событие", "Диалог «" + text.Replace("\n", " ") + "» → выбираю «" + (R.Get(pick, "text") as string ?? "?") + "»");
-            pick.Activate();
+            try
+            {
+                MethodInfo act = typeof(DiaOption).GetMethod("Activate", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (act != null) act.Invoke(pick, null); else win.Close(true);
+            }
+            catch (Exception e) { Log.Warning("[RimBot] Не удалось нажать вариант диалога: " + e.Message); win.Close(true); }
         }
 
         // ---------- письма ----------
