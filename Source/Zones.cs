@@ -36,11 +36,13 @@ namespace RimWorldBot.TradeEmpire
         public static int Cleanup(Map map)
         {
             if (map == null) return 0;
+            if (TradeEmpireMod.S != null && !TradeEmpireMod.S.autoZoneCleanup) return 0;
             int removed = 0;
             try
             {
                 List<Zone_Stockpile> piles = map.zoneManager.AllZones.OfType<Zone_Stockpile>().ToList();
-                bool hasRoofedPile = piles.Any(z => z.cells.Count >= 4 && z.cells.All(c => c.Roofed(map)));
+                bool hasRoofedPile = piles.Any(z => z.cells.Count >= 4 && z.cells.All(c => c.Roofed(map))
+                    && z.AllContainedThings.Any());
 
                 // 1) Совсем пустые/битые зоны бота.
                 foreach (Zone z in map.zoneManager.AllZones.ToList())

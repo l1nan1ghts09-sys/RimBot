@@ -60,6 +60,7 @@ namespace RimWorldBot.TradeEmpire
         public static int MarkProblemRoofs(Map map)
         {
             if (map == null) return 0;
+            if (TradeEmpireMod.S != null && !TradeEmpireMod.S.autoRoofs) return 0;
             int marked = 0;
             try
             {

@@ -38,6 +38,7 @@ namespace RimWorldBot.TradeEmpire
         /// <summary>Пещерная база: дверь в узком проходе и бережное использование скалы.</summary>
         public static string CavePattern(Map map)
         {
+            if (TradeEmpireMod.S != null && !TradeEmpireMod.S.autoPatterns) return "Паттерны: выключены в настройках.";
             Site.Info site = Site.Best(map);
             if (site == null || (!site.cave && !site.hollow))
                 return site != null && site.poor
@@ -70,6 +71,7 @@ namespace RimWorldBot.TradeEmpire
         public static bool FireSafety(Map map)
         {
             if (map == null) return false;
+            if (TradeEmpireMod.S != null && !TradeEmpireMod.S.autoPatterns) return false;
             try
             {
                 int batteries = map.listerBuildings.allBuildingsColonist.Count(b =>

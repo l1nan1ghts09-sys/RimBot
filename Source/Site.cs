@@ -113,6 +113,10 @@ namespace RimWorldBot.TradeEmpire
                         IntVec3 c = new IntVec3(x, 0, z);
                         if (!c.InBounds(map) || c.Fogged(map) || !c.Standable(map)) continue;
                         if (c.GetEdifice(map) != null) continue;
+                        // Закрытая со всех сторон пещера без прохода не годится: до неё
+                        // нельзя дойти, а значит нельзя и заселиться.
+                        if (aroundColonists && !cols.Any(p => p != null && p.Spawned
+                            && p.CanReach(c, PathEndMode.Touch, Danger.Deadly))) continue;
 
                         int n = 0, buildable = 0, water = 0, rock = 0, roofed = 0, geyser = 0;
                         int mountainRoof = 0, caveFloor = 0, perimeterRock = 0, perimeterOpen = 0;
