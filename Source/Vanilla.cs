@@ -17,7 +17,7 @@ namespace RimWorldBot.TradeEmpire
     public static class Vanilla
     {
         private static readonly HashSet<int> botDrafted = new HashSet<int>();
-        private static int nextDefense, nextFarm, nextHunt, nextTame, nextMine, nextEquip, nextBills, nextPrison;
+        private static int nextDefense, nextFarm, nextHunt, nextTame, nextMine, nextEquip, nextBills, nextPrison, nextShelter;
         private static int lastThought;
         private static bool announced;
 
@@ -39,7 +39,7 @@ namespace RimWorldBot.TradeEmpire
         public static void ResetRuntime()
         {
             botDrafted.Clear();
-            nextDefense = nextFarm = nextHunt = nextTame = nextMine = nextEquip = nextBills = nextPrison = 0;
+            nextDefense = nextFarm = nextHunt = nextTame = nextMine = nextEquip = nextBills = nextPrison = nextShelter = 0;
             lastThought = 0;
             announced = false;
         }
@@ -55,6 +55,7 @@ namespace RimWorldBot.TradeEmpire
 
             T.Safe("VanillaDefense", () => Defense(map, tick));
             if (tick >= nextBills) { nextBills = tick + 6000; T.Safe("VanillaBills", () => Bills(map)); }
+            if (tick >= nextShelter) { nextShelter = tick + 9000; T.Safe("VanillaShelter", () => Shelter(map)); }
             if (tick >= nextEquip) { nextEquip = tick + 3000; T.Safe("VanillaEquip", () => Equip(map)); }
             if (tick >= nextFarm) { nextFarm = tick + 4000; T.Safe("VanillaFarm", () => Farm(map)); }
             if (tick >= nextHunt) { nextHunt = tick + 2500; T.Safe("VanillaHunt", () => Hunt(map)); }
@@ -387,6 +388,116 @@ namespace RimWorldBot.TradeEmpire
                 }
             }
             catch (Exception e) { T.Warn("Пленные: " + e.Message); }
+        }
+
+        // ============================== жильё ==============================
+
+        /// <summary>Простая комната у базы: стены, дверь и крыша. Без неё кровати, плита и еда остаются под открытым небом.</summary>
+        public static void Shelter(Map map)
+        {
+            try
+            {
+                int pop = Math.Max(1, map.mapPawns.FreeColonistsSpawnedCount);
+                int roofedBeds = 0;
+                foreach (Building_Bed b in map.listerBuildings.allBuildingsColonist.OfType<Building_Bed>())
+                    if (b.Position.Roofed(map)) roofedBeds++;
+                if (roofedBeds >= Math.Min(pop, 3)) return;
+
+                IntVec3 anchor = Infrastructure.Anchor(map);
+                int roofed = 0;
+                foreach (IntVec3 c in GenRadial.RadialCellsAround(anchor, 12f, true))
+                    if (c.InBounds(map) && c.Roofed(map)) roofed++;
+                if (roofed >= 24) return;   // уже есть крытое помещение — пусть им занимается навык «быт»
+
+                int side = pop <= 3 ? 7 : pop <= 6 ? 9 : 11;
+                for (int r = 0; r <= 15; r += 3)
+                {
+                    foreach (IntVec3 center in GenRadial.RadialCellsAround(anchor, r, true))
+                    {
+                        if (!center.InBounds(map)) continue;
+                        if (TryRoom(map, center, side)) return;
+                        if (RoofIfEnclosed(map, center, side)) return;
+                    }
+                    if (r == 0) continue;
+                }
+            }
+            catch (Exception e) { T.Warn("Жильё: " + e.Message); }
+        }
+
+        private static bool TryRoom(Map map, IntVec3 center, int side)
+        {
+            int half = side / 2;
+            IntVec3 min = new IntVec3(center.x - half, 0, center.z - half);
+            ThingDef wall = ThingDefOf.Wall;
+            ThingDef door = ThingDefOf.Door;
+            ThingDef stuff = T.Count(map, ThingDefOf.WoodLog) >= 40 ? ThingDefOf.WoodLog : (T.Def("BlocksGranite") ?? ThingDefOf.WoodLog);
+            if (wall == null || door == null || stuff == null) return false;
+
+            List<IntVec3> wallCells = new List<IntVec3>();
+            IntVec3 doorCell = IntVec3.Invalid;
+            for (int x = 0; x < side; x++)
+            {
+                for (int z = 0; z < side; z++)
+                {
+                    IntVec3 c = new IntVec3(min.x + x, 0, min.z + z);
+                    if (!c.InBounds(map) || c.Fogged(map)) return false;
+                    bool edge = x == 0 || z == 0 || x == side - 1 || z == side - 1;
+                    if (!edge)
+                    {
+                        if (c.GetEdifice(map) != null) return false;
+                        continue;
+                    }
+                    if (map.zoneManager.ZoneAt(c) != null) return false;
+                    if (c.GetEdifice(map) != null) return false;
+                    foreach (Thing t in map.thingGrid.ThingsAt(c))
+                        if (!t.def.CanOverlapZones) return false;
+                    if (x == side / 2 && z == 0) doorCell = c;
+                    else wallCells.Add(c);
+                }
+            }
+            if (wallCells.Count < 8 || !doorCell.IsValid) return false;
+
+            // Сначала проверяем всё, потом строим — иначе останутся рваные стены.
+            foreach (IntVec3 c in wallCells)
+                if (!GenConstruct.CanPlaceBlueprintAt(wall, c, Rot4.North, map, false, null, null, stuff).Accepted) return false;
+            if (!GenConstruct.CanPlaceBlueprintAt(door, doorCell, Rot4.North, map, false, null, null, stuff).Accepted) return false;
+
+            foreach (IntVec3 c in wallCells)
+                GenConstruct.PlaceBlueprintForBuild(wall, c, map, Rot4.North, Faction.OfPlayer, stuff);
+            GenConstruct.PlaceBlueprintForBuild(door, doorCell, map, Rot4.North, Faction.OfPlayer, stuff);
+            Mind.Think("быт", "Заложил комнату " + side + "×" + side + " у базы: стены, дверь и крыша. Внутри будут кровати и плита, еда перестанет портиться под дождём.");
+            return true;
+        }
+
+        /// <summary>Когда стены готовы — накрываем комнату крышей (ванильная крыша бесплатна, нужна только работа).</summary>
+        private static bool RoofIfEnclosed(Map map, IntVec3 center, int side)
+        {
+            int half = side / 2;
+            IntVec3 min = new IntVec3(center.x - half, 0, center.z - half);
+            for (int x = 0; x < side; x++)
+            {
+                for (int z = 0; z < side; z++)
+                {
+                    IntVec3 c = new IntVec3(min.x + x, 0, min.z + z);
+                    if (!c.InBounds(map)) return false;
+                    bool edge = x == 0 || z == 0 || x == side - 1 || z == side - 1;
+                    if (!edge) continue;
+                    if (c.GetEdifice(map) == null) return false;
+                }
+            }
+            bool changed = false;
+            for (int x = 1; x < side - 1; x++)
+            {
+                for (int z = 1; z < side - 1; z++)
+                {
+                    IntVec3 c = new IntVec3(min.x + x, 0, min.z + z);
+                    if (!c.InBounds(map) || c.Roofed(map)) continue;
+                    map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
+                    changed = true;
+                }
+            }
+            if (changed) Mind.Think("быт", "Стены готовы — накрыл комнату крышей. Теперь внутри можно ставить кровати и плиту.");
+            return changed;
         }
 
         private static void Equip(Map map)
