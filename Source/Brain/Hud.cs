@@ -218,6 +218,7 @@ namespace RimWorldBot.TradeEmpire
             y += Label(v, y, Deterioration.Line(w.map), 0);
             y += Label(v, y, Storage.StatusLine(w.map), 0);
             y += Label(v, y, Mechanics.Line(w.map), 0);
+            y += Label(v, y, AutoClose.Line(), 0);
             y += 4f;
 
             Head(v, ref y, "Оборона базы");

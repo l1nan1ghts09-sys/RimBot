@@ -60,6 +60,8 @@ namespace RimWorldBot.TradeEmpire
         public int defenseTrapCap = 8;        // максимум ловушек
         public bool craftItems = true;        // крафт нужных вещей: оружие, одежда, лекарства, компоненты
         public bool focusTasks = true;        // одна главная задача за раз, без распыления
+        public bool autoCloseWindows = true;  // закрывать всплывающие окна поверх игры
+        public bool autoCloseNotifications = true; // убирать письма и всплывающие сообщения
 
         public override void ExposeData()
         {
@@ -111,6 +113,8 @@ namespace RimWorldBot.TradeEmpire
             Scribe_Values.Look(ref defenseTrapCap, "defenseTrapCap", 8);
             Scribe_Values.Look(ref craftItems, "craftItems", true);
             Scribe_Values.Look(ref focusTasks, "focusTasks", true);
+            Scribe_Values.Look(ref autoCloseWindows, "autoCloseWindows", true);
+            Scribe_Values.Look(ref autoCloseNotifications, "autoCloseNotifications", true);
             base.ExposeData();
         }
     }
@@ -205,6 +209,8 @@ namespace RimWorldBot.TradeEmpire
             l.Label("Производство и порядок");
             l.CheckboxLabeled("Крафтить нужные вещи (оружие, одежда, лекарства, компоненты)", ref S.craftItems);
             l.CheckboxLabeled("Одна главная задача за раз (не распыляться)", ref S.focusTasks);
+            l.CheckboxLabeled("Закрывать всплывающие окна поверх игры", ref S.autoCloseWindows);
+            l.CheckboxLabeled("Убирать письма и всплывающие сообщения", ref S.autoCloseNotifications);
             l.GapLine();
             l.Label(Ledger.Summary());
             l.End();

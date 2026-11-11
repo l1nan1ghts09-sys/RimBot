@@ -48,6 +48,13 @@ namespace RimWorldBot.TradeEmpire
             if (TradeEmpireMod.S == null || TradeEmpireMod.S.economyLearning) Knowledge.ObserveSale(def.defName, count);
         }
 
+        public override void GameComponentOnGUI()
+        {
+            // Панель «Мозг» может быть выключена, но закрывать окна и уведомления бот должен всегда.
+            TradeSettings st = TradeEmpireMod.S;
+            if (st != null && st.enabled && !st.brain) T.Safe("AutoClose", AutoClose.OnGUI);
+        }
+
         public override void GameComponentTick()
         {
             var s = TradeEmpireMod.S;

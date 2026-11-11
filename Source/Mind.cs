@@ -116,6 +116,7 @@ namespace RimWorldBot.TradeEmpire
             else pausedSince = -1f;
 
             T.Safe("Control", Control.OnGUI);
+            T.Safe("AutoClose", AutoClose.OnGUI);
 
             Event e = Event.current;
             if (e != null && e.type == EventType.KeyDown && e.control && e.keyCode == KeyCode.T) { Toggle(); e.Use(); }
@@ -136,6 +137,7 @@ namespace RimWorldBot.TradeEmpire
 
         public static void ResetRuntime()
         {
+            AutoClose.ResetRuntime();
             Log.Clear();
             Concerns.Clear();
             Headline = "";
