@@ -64,6 +64,7 @@ namespace RimWorldBot.TradeEmpire
             }
 
             T.Safe("Focus", () => Focus.Run(map, tick));
+            T.Safe("Needs", () => Needs.Run(map));
             T.Safe("VanillaDefense", () => RaidDefense(map, tick));
             T.Safe("DefenseBuild", () => Defense.Run(map, tick));
             if (tick >= nextBills && Focus.Allows("Craft"))
