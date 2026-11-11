@@ -285,10 +285,10 @@ namespace RimWorldBot.TradeEmpire
             }
 
             // Назначение специалистов под текущую задачу развития.
-            if (research) Specialist(cols, WorkTypeDefOf.Research);
-            if (injured > 0) Specialist(cols, WorkTypeDefOf.Doctor);
-            if (foodDays < 4f) Specialist(cols, WorkTypeDefOf.Cooking);
-            if (build > 0) Specialist(cols, WorkTypeDefOf.Construction);
+            if (research) Specialist(cols, WT("Research"));
+            if (injured > 0) Specialist(cols, WT("Doctor"));
+            if (foodDays < 4f) Specialist(cols, WT("Cooking"));
+            if (build > 0) Specialist(cols, WT("Construction"));
 
             if (tickOfSummary == -1 || Find.TickManager.TicksGame - tickOfSummary > 6000)
             {
@@ -299,6 +299,11 @@ namespace RimWorldBot.TradeEmpire
                 Mind.Think("работа", "Приоритеты: еда " + foodDays.ToString("0.0") + " дн., раненых " + injured + ", строек " + build
                     + ", дерева " + wood + ", стали " + steel + farmInfo + ". Каждому максимум 2 вида работ с приоритетом 1.");
             }
+        }
+
+        private static WorkTypeDef WT(string name)
+        {
+            return DefDatabase<WorkTypeDef>.GetNamedSilentFail(name);
         }
 
         /// <summary>Если за работу никто не отвечает приоритетом 1 — назначаем лучшего по навыку.</summary>
