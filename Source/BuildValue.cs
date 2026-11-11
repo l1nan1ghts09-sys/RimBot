@@ -86,7 +86,7 @@ namespace RimWorldBot.TradeEmpire
                 float raw = Resources.BuildCost(map, def, stuff, 1);
                 float wealth = 0f;
                 try { wealth = map.wealthWatcher.WealthTotal; } catch { }
-                e.cost = U.Clamp01(raw / Math.Max(600f, wealth * 0.03f));
+                e.cost = U.Clamp01(raw / Math.Max(1200f, wealth * 0.06f));
                 e.risk = threat > 0.6f ? 0.18f : 0.05f;
                 e.urgency = 0.75f + threat * 0.45f;
                 e.score = e.benefit * e.urgency - e.cost - e.risk;

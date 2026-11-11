@@ -89,7 +89,7 @@ namespace RimWorldBot.TradeEmpire
             {
                 nextFarm = tick + 4000;
                 float f = Utility.FoodPressure(map);
-                Utility.Weigh("farm", "разбить или расширить грядки", 0.25f + f * 0.70f, 0.10f, 0.02f, 1f,
+                Utility.Weigh("farm", "разбить или расширить грядки", 0.15f + f * 0.75f, 0.10f, 0.02f, 1f,
                     "появится свой урожай и запас еды", "придётся закупать еду или охотиться",
                     () => Farm(map));
             }
@@ -105,7 +105,7 @@ namespace RimWorldBot.TradeEmpire
             {
                 nextMine = tick + 4000;
                 float st = Utility.SteelPressure(map);
-                Utility.Weigh("mine", "пометить руду и камень на добычу", 0.20f + st * 0.55f, 0.12f, 0.04f, 1f,
+                Utility.Weigh("mine", "пометить руду и камень на добычу", 0.15f + st * 0.65f, 0.12f, 0.04f, 1f,
                     "будет сталь и камень для обороны и построек", "стройка встанет из-за нехватки материалов",
                     () => Mine(map));
             }
@@ -625,7 +625,7 @@ namespace RimWorldBot.TradeEmpire
             IntVec3 min = new IntVec3(center.x - half, 0, center.z - half);
             ThingDef wall = ThingDefOf.Wall;
             ThingDef door = ThingDefOf.Door;
-            ThingDef stuff = ShelterStuff(map, side <= 7 ? 30 : side <= 9 ? 45 : 60);
+            ThingDef stuff = ShelterStuff(map, side <= 7 ? 25 : side <= 9 ? 40 : 55);
             if (wall == null || door == null || stuff == null) return false;
 
             List<IntVec3> wallCells = new List<IntVec3>();

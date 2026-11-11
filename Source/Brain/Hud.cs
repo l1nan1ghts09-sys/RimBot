@@ -105,9 +105,6 @@ namespace RimWorldBot.TradeEmpire
                 y += Label(v, y, "Угроза: " + (w.threat ? w.hostiles + " врагов, сила " + U.Pct(w.threatRatio) : "нет")
                     + ". Риск рейда " + U.Pct(w.baseRisk) + ". Оборона: турелей " + w.turrets + ", ловушек " + w.traps + ".", 0);
                 y += Label(v, y, Defense.StatusShort, 0);
-                y += Label(v, y, Site.Line(w.map), 0);
-                y += Label(v, y, Resources.BudgetLine(w.map), 0);
-                y += Label(v, y, BuildValue.Line(w.map), 0);
                 y += Label(v, y, "Здоровье " + U.Pct(w.healthScore) + ", настроение " + U.Pct(w.moodAvg) + ", отдых " + U.Pct(w.restMin)
                     + ", лекарств " + w.medicine + ".", 0);
                 y += Label(v, y, "Энергия " + (int)w.powerCapacity + "/" + (int)w.powerDemand + " Вт (дефицит " + (int)w.powerDeficit + "), "

@@ -23,7 +23,7 @@ namespace RimWorldBot.TradeEmpire
             if (def == ThingDefOf.ComponentIndustrial) return Math.Max(12, pop * 3);
             if (def == ThingDefOf.MedicineIndustrial || def == ThingDefOf.MedicineHerbal)
                 return Math.Max(8, pop * 2);
-            if (def == ThingDefOf.WoodLog) return Math.Max(120, pop * 25);
+            if (def == ThingDefOf.WoodLog) return Math.Max(60, pop * 12);
             if (def == ThingDefOf.Silver) return s != null ? s.silverReserve : 400;
             string n = def.defName != null ? def.defName : "";
             if (n.StartsWith("Blocks")) return Math.Max(80, pop * 15);

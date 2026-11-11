@@ -1,4 +1,4 @@
-# RimWorldBot — автопилот колонии (vanilla) 2.1.0
+# RimWorldBot — автопилот колонии (vanilla) 2.2.0
 
 Готовый мод для **чистого RimWorld 1.6**. Один мод, одна DLL:
 без Harmony, без DLC и без других модов.
