@@ -13,7 +13,6 @@ namespace RimWorldBot.TradeEmpire
         public int lastDealTick;
         private int nextRun;
         private int step;
-        private int dialogSeenTick = -1;
         private Dictionary<int, int> lastTradedShip = new Dictionary<int, int>();
         private List<int> shipKeys, shipVals;
         public Dictionary<string, int> soldByDef = new Dictionary<string, int>();

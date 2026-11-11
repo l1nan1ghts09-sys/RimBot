@@ -179,8 +179,9 @@ namespace RimWorldBot.TradeEmpire
                 l.count = n; chosenSells.Add(l); sellValue += n * l.unit;
             }
 
-            if (sellValue < s.minDealValue && chosenBuys.Count == 0) return false;
-            if (sellValue < buyValue * 0.2f && sellValue < s.minDealValue) return false;
+            // Сделка может быть чисто закупочной (нужны сталь/компоненты/еда) — не требуем продаж.
+            if (chosenSells.Count == 0 && chosenBuys.Count == 0) return false;
+            if (sellValue < s.minDealValue && buyValue < s.minDealValue) return false;
 
             foreach (Line l in chosenSells) Force(l.tr, sellSign * l.count);
             foreach (Line b in chosenBuys) Force(b.tr, -sellSign * b.count);
