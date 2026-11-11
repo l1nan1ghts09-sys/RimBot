@@ -26,6 +26,14 @@ namespace RimWorldBot.TradeEmpire
         public bool autoSpeed = true;         // бот сам управляет скоростью времени
         public bool takeover = true;          // заменить энергетику и приоритеты работ бота своими
         public bool watchdog = true;          // разрыв зацикливаний
+        // ---- 2.0: когнитивное ядро ----
+        public bool deepBrain = true;         // цели, планы, прогнозы, рефлексия
+        public bool smartResearch = true;     // выбирать исследования по расчётной ценности
+        public bool adaptiveTakeover = true;  // сам решает, какие подсистемы бота взять на себя
+        public bool experiments = true;       // разрешить осторожные эксперименты с настройками
+        public bool verboseWhy = true;        // подробные объяснения решений в панели
+        public bool economyLearning = true;   // учиться на фактических сделках
+        public float riskTolerance = 0.35f;   // 0 — осторожно, 1 — рискованно
         public int calmSpeed = 2;             // скорость в спокойствии: 1 обычная, 2 быстрая, 3 сверхбыстрая
         public int runInterval = 600;         // тиков между проходами
         public int silverReserve = 400;       // не тратить ниже
@@ -54,6 +62,13 @@ namespace RimWorldBot.TradeEmpire
             Scribe_Values.Look(ref calmSpeed, "calmSpeed", 2);
             Scribe_Values.Look(ref takeover, "takeover", true);
             Scribe_Values.Look(ref watchdog, "watchdog", true);
+            Scribe_Values.Look(ref deepBrain, "deepBrain", true);
+            Scribe_Values.Look(ref smartResearch, "smartResearch", true);
+            Scribe_Values.Look(ref adaptiveTakeover, "adaptiveTakeover", true);
+            Scribe_Values.Look(ref experiments, "experiments", true);
+            Scribe_Values.Look(ref verboseWhy, "verboseWhy", true);
+            Scribe_Values.Look(ref economyLearning, "economyLearning", true);
+            Scribe_Values.Look(ref riskTolerance, "riskTolerance", 0.35f);
             Scribe_Values.Look(ref runInterval, "runInterval", 600);
             Scribe_Values.Look(ref silverReserve, "silverReserve", 400);
             Scribe_Values.Look(ref minDealValue, "minDealValue", 200);
@@ -82,10 +97,12 @@ namespace RimWorldBot.TradeEmpire
 
         public override void DoSettingsWindowContents(Rect inRect)
         {
-            var view = new Rect(0, 0, inRect.width - 20f, 1100f);
+            var view = new Rect(0, 0, inRect.width - 20f, 1500f);
             Widgets.BeginScrollView(inRect, ref scroll, view);
             var l = new Listing_Standard();
             l.Begin(view);
+            l.Label("Мозг 2.0: восприятие → цели → навыки → проверка результата → обучение. Знания хранятся в Config/RimBotMind.txt.");
+            l.GapLine();
             l.CheckboxLabeled("Включить торговую империю", ref S.enabled);
             l.CheckboxLabeled("Орбитальная торговля (консоль связи)", ref S.orbitalTrade);
             l.CheckboxLabeled("Авто-сделки в окнах торговли (гости/караваны)", ref S.visitorTrade);
@@ -101,6 +118,22 @@ namespace RimWorldBot.TradeEmpire
             l.CheckboxLabeled("Бот управляет скоростью времени", ref S.autoSpeed);
             l.CheckboxLabeled("Умная энергетика и приоритеты работ (вместо встроенных)", ref S.takeover);
             l.CheckboxLabeled("Разрыв зацикливаний (сторож)", ref S.watchdog);
+            l.GapLine();
+            l.Label("— Когнитивное ядро 2.0 —");
+            l.CheckboxLabeled("Глубокий мозг: цели, планы, прогнозы, рефлексия", ref S.deepBrain);
+            l.CheckboxLabeled("Сам выбирает исследования по ценности", ref S.smartResearch);
+            l.CheckboxLabeled("Адаптивно брать подсистемы бота на себя", ref S.adaptiveTakeover);
+            l.CheckboxLabeled("Осторожные эксперименты (самообучение)", ref S.experiments);
+            l.CheckboxLabeled("Подробно объяснять решения", ref S.verboseWhy);
+            l.CheckboxLabeled("Учиться на фактических сделках", ref S.economyLearning);
+            l.Label("Склонность к риску: " + S.riskTolerance.ToString("0.00"));
+            S.riskTolerance = l.Slider(S.riskTolerance, 0f, 1f);
+            if (l.ButtonText("Сбросить накопленное обучение"))
+            {
+                Learning.ResetAll();
+                T.Info("Обучение сброшено: статистика и уроки удалены, бот начнёт с чистого листа.");
+            }
+            l.GapLine();
             S.calmSpeed = Slider(l, "Скорость в спокойствии (1 обычная, 2 быстрая, 3 сверхбыстрая)", S.calmSpeed, 1, 3);
             l.GapLine();
             S.silverReserve = Slider(l, "Резерв серебра", S.silverReserve, 0, 5000);
@@ -179,7 +212,7 @@ namespace RimWorldBot.TradeEmpire
                 if (inst == null) return true;
                 var paused = t.GetProperty("Paused")?.GetValue(inst, null);
                 if (paused is bool && (bool)paused) return false;
-                var st = t.GetField("settings")?.GetValue(inst);
+                var st = t.GetField("settings", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(inst);
                 var en = st?.GetType().GetField("enabled")?.GetValue(st);
                 if (en is bool && !(bool)en) return false;
             }
@@ -194,8 +227,8 @@ namespace RimWorldBot.TradeEmpire
             {
                 var t = FindType("RimWorldBot.BotGameComponent");
                 var inst = t?.GetField("Instance")?.GetValue(null);
-                var st = t?.GetField("settings")?.GetValue(inst);
-                var v = st?.GetType().GetField(field)?.GetValue(st);
+                var st = t?.GetField("settings", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(inst);
+                var v = st?.GetType().GetField(field, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(st);
                 if (v is int) return (int)v;
                 if (v is float) return Mathf.RoundToInt((float)v);
             }
@@ -226,6 +259,26 @@ namespace RimWorldBot.TradeEmpire
             if (c == null) return "Оборот: (игра не загружена)";
             return "Оборот: продано на " + c.totalSold + ", куплено на " + c.totalBought + ", сделок: " + c.deals
                  + ", суммарный оборот: " + (c.totalSold + c.totalBought);
+        }
+
+        /// <summary>Запоминает фактическую продажу: что колония реально умеет сбывать.</summary>
+        public static void RecordSale(ThingDef def, int count)
+        {
+            if (def == null || count <= 0) return;
+            var c = C;
+            if (c != null) c.RecordSale(def, count);
+            else Knowledge.ObserveSale(def.defName, count);
+        }
+
+        /// <summary>Спрос: сколько единиц этого товара уже удалось продать (с учётом прошлых игр).</summary>
+        public static float Demand(string defName)
+        {
+            if (string.IsNullOrEmpty(defName)) return 0f;
+            float learned = Knowledge.DemandScore(defName);
+            float current = 0f;
+            var c = C;
+            if (c != null && c.soldByDef != null && c.soldByDef.TryGetValue(defName, out current)) current = Mathf.Min(current, 200);
+            return Mathf.Max(learned, current * 0.25f);
         }
     }
 }

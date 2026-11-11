@@ -16,6 +16,9 @@ namespace RimWorldBot.TradeEmpire
         private int dialogSeenTick = -1;
         private Dictionary<int, int> lastTradedShip = new Dictionary<int, int>();
         private List<int> shipKeys, shipVals;
+        public Dictionary<string, int> soldByDef = new Dictionary<string, int>();
+        private List<string> soldKeys;
+        private List<int> soldVals;
 
         public TradeComponent(Game game) { }
 
@@ -27,12 +30,23 @@ namespace RimWorldBot.TradeEmpire
             Scribe_Values.Look(ref lastDealTick, "lastDealTick");
             Scribe_Collections.Look(ref lastTradedShip, "lastTradedShip", LookMode.Value, LookMode.Value, ref shipKeys, ref shipVals);
             if (lastTradedShip == null) lastTradedShip = new Dictionary<int, int>();
+            Scribe_Collections.Look(ref soldByDef, "soldByDef", LookMode.Value, LookMode.Value, ref soldKeys, ref soldVals);
+            if (soldByDef == null) soldByDef = new Dictionary<string, int>();
         }
 
         public void RecordDeal(float sold, float bought)
         {
             totalSold += (long)sold; totalBought += (long)bought; deals++;
             lastDealTick = Find.TickManager.TicksGame;
+        }
+
+        public void RecordSale(ThingDef def, int count)
+        {
+            if (def == null || count <= 0) return;
+            int cur;
+            soldByDef.TryGetValue(def.defName, out cur);
+            soldByDef[def.defName] = cur + count;
+            if (TradeEmpireMod.S == null || TradeEmpireMod.S.economyLearning) Knowledge.ObserveSale(def.defName, count);
         }
 
         public override void GameComponentTick()

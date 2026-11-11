@@ -13,6 +13,8 @@ namespace RimWorldBot.TradeEmpire
         private static readonly Dictionary<string, int> cd = new Dictionary<string, int>();
         private static int lastParty = -999999;
 
+        public static void ResetRuntime() { cd.Clear(); lastParty = -999999; }
+
         private static bool Ready(string k, int ticks)
         {
             int now = Find.TickManager.TicksGame, last;

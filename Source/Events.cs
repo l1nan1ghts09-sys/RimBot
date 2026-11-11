@@ -14,6 +14,8 @@ namespace RimWorldBot.TradeEmpire
         private static readonly Dictionary<Pawn, Area> previousAreas = new Dictionary<Pawn, Area>();
         private static bool sheltering;
 
+        public static void ResetRuntime() { seenConditions.Clear(); previousAreas.Clear(); sheltering = false; }
+
         public static void Run(Map map)
         {
             Joiners(map);

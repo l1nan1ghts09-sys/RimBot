@@ -12,6 +12,8 @@ namespace RimWorldBot.TradeEmpire
     {
         private static int lastBench;
 
+        public static void ResetRuntime() { lastBench = 0; }
+
         public static void Run(Map map)
         {
             if (PendingBlueprints(map) >= 3) return;
@@ -145,5 +147,8 @@ namespace RimWorldBot.TradeEmpire
             done = true;
             T.Info("Приоритеты исследований: добавлено торговых направлений — " + Trade.Length);
         }
+
+        /// <summary>Новая игра — снова подмешиваем торговые направления (статический флаг сбрасывается).</summary>
+        public static void Reset() { done = false; }
     }
 }

@@ -19,6 +19,8 @@ namespace RimWorldBot.TradeEmpire
         private static MethodInfo pcv;
         private static int quietSince = -1;
 
+        public static void ResetRuntime() { quietSince = -1; }
+
         public static void Install()
         {
             if (installed || tries >= 5) return;

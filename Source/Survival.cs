@@ -14,6 +14,8 @@ namespace RimWorldBot.TradeEmpire
         private static int nextPower, nextWork;
         private static bool announced;
 
+        public static void ResetRuntime() { nextPower = 0; nextWork = 0; announced = false; WorkGovernor.ResetRuntime(); }
+
         public static void Run(Map map, int tick)
         {
             // Отключаем встроенные модули бота (его настройки autoPower / autoWorkPriorities).
@@ -169,6 +171,9 @@ namespace RimWorldBot.TradeEmpire
     public static class WorkGovernor
     {
         private static readonly string[] Vital = { "Doctor", "Cooking", "Growing" };
+        private static int tickOfSummary = -1;
+
+        public static void ResetRuntime() { tickOfSummary = -1; }
 
         public static void Run(Map map)
         {
@@ -186,20 +191,29 @@ namespace RimWorldBot.TradeEmpire
                       + map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingFrame).Count(t => t.Faction == Faction.OfPlayer);
             bool farm = map.zoneManager.AllZones.OfType<Zone_Growing>().Any();
             bool prisoners = map.mapPawns.PrisonersOfColonySpawned.Any();
+            int wood = T.Count(map, ThingDefOf.WoodLog);
+            int steel = T.Count(map, ThingDefOf.Steel);
+            int meds = T.Count(map, ThingDefOf.MedicineIndustrial) + T.Count(map, ThingDefOf.MedicineHerbal);
+            bool research = false;
+            try { research = Find.ResearchManager != null && R.Get(Find.ResearchManager, "currentProj") != null; } catch { }
 
             var urg = new Dictionary<string, float>
             {
                 { "Doctor", injured > 0 ? 1.0f : 0.45f },
-                { "Cooking", foodDays < 4 ? 1.0f : foodDays < 10 ? 0.85f : 0.65f },
-                { "Growing", !farm ? 0.4f : foodDays < 8 ? 0.95f : 0.7f },
-                { "PlantCutting", foodDays < 3 ? 0.8f : 0.3f },
-                { "Hunting", foodDays < 3 ? 0.8f : 0.15f },
-                { "Construction", build > 0 ? 0.75f : 0.35f },
-                { "Hauling", foodDays < 3 ? 0.7f : 0.55f },
-                { "Mining", 0.4f }, { "Research", 0.35f }, { "Smithing", 0.25f }, { "Tailoring", 0.3f },
-                { "Crafting", 0.25f }, { "Art", 0.1f }, { "Cleaning", 0.25f },
-                { "Warden", prisoners ? 0.45f : 0.05f }, { "Handling", 0.3f }, { "Childcare", 0.4f }, { "BasicWorker", 0.35f }
+                { "Cooking", foodDays < 4 ? 1.0f : foodDays < 10 ? 0.85f : 0.6f },
+                { "Growing", !farm ? 0.55f : foodDays < 8 ? 0.95f : 0.7f },
+                { "PlantCutting", foodDays < 3 || wood < 80 ? 0.8f : 0.25f },
+                { "Hunting", foodDays < 4 ? 0.8f : 0.1f },
+                { "Construction", build > 0 ? 0.8f : 0.35f },
+                { "Hauling", foodDays < 3 ? 0.75f : 0.5f },
+                { "Mining", steel < 200 ? 0.55f : 0.3f },
+                { "Research", research ? 0.55f : 0.3f },
+                { "Smithing", steel > 200 ? 0.3f : 0.15f },
+                { "Tailoring", 0.3f }, { "Crafting", 0.25f }, { "Art", 0.08f }, { "Cleaning", 0.28f },
+                { "Warden", prisoners ? 0.5f : 0.05f }, { "Handling", 0.3f }, { "Childcare", 0.4f },
+                { "BasicWorker", 0.35f }
             };
+            if (meds < 8) urg["Crafting"] = 0.4f;
 
             // Базовые «всегда 1»
             string[] always = { "Firefighter", "Patient", "PatientBedRest" };
@@ -239,8 +253,12 @@ namespace RimWorldBot.TradeEmpire
                 Mind.Think("работа", best.LabelShort + " назначен на «" + wt.labelShort + "» (приоритет 1): никто не закрывал жизненно важную работу.");
             }
 
-            Mind.Think("работа", "Приоритеты пересчитаны: еда " + foodDays.ToString("0.0") + " дн., раненых " + injured + ", строек " + build
-                + ". Каждому максимум 2 вида работ с приоритетом 1.");
+            if (tickOfSummary == -1 || Find.TickManager.TicksGame - tickOfSummary > 6000)
+            {
+                tickOfSummary = Find.TickManager.TicksGame;
+                Mind.Think("работа", "Приоритеты: еда " + foodDays.ToString("0.0") + " дн., раненых " + injured + ", строек " + build
+                    + ", дерева " + wood + ", стали " + steel + ". Каждому максимум 2 вида работ с приоритетом 1.");
+            }
         }
 
         private static void Set(Pawn p, string def, int pr)
@@ -258,6 +276,8 @@ namespace RimWorldBot.TradeEmpire
         private static readonly Dictionary<int, Track> tracks = new Dictionary<int, Track>();
         private static readonly Dictionary<string, Rep> reps = new Dictionary<string, Rep>();
         private static readonly Dictionary<Thing, int> unforbidAt = new Dictionary<Thing, int>();
+        public static void ResetRuntime() { tracks.Clear(); reps.Clear(); unforbidAt.Clear(); }
+
         private static readonly string[] Exempt =
         {
             "Wait", "Wait_Combat", "Wait_Wander", "Wait_MaintainPosture", "LayDown", "Sleep", "Ingest", "Research", "DoBill", "Mine",

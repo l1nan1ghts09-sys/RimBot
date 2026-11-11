@@ -12,6 +12,8 @@ namespace RimWorldBot.TradeEmpire
     {
         private static readonly Dictionary<string, int> cooldown = new Dictionary<string, int>();
 
+        public static void ResetRuntime() { cooldown.Clear(); }
+
         private static bool Ready(string key, int ticks)
         {
             int now = Find.TickManager.TicksGame, last;
@@ -95,6 +97,8 @@ namespace RimWorldBot.TradeEmpire
         }
 
         private static int next;
+
+        public static void ResetRuntime() { next = 0; }
 
         public static void Run(Map map)
         {
