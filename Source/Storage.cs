@@ -46,7 +46,9 @@ namespace RimWorldBot.TradeEmpire
             if (Piles(map).Count > 0) return;
 
             IntVec3 anchor = Infrastructure.Anchor(map);
-            List<IntVec3> cells = PickCells(map, anchor, 7f, 25, false);
+            // Не занимаем самый центр базы: там бот будет ставить жилую комнату.
+            List<IntVec3> cells = PickCells(map, anchor, 10f, 40, false)
+                .Where(c => c.DistanceTo(anchor) >= 5f).Take(25).ToList();
             if (cells.Count < 6) return;
 
             Zone_Stockpile zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
