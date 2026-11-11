@@ -25,11 +25,21 @@ namespace RimWorldBot.TradeEmpire
         public static int ClosedMessages { get; private set; }
         public static string LastAction = "";
 
-        // Окна, которые нельзя закрывать: настройки и собственная панель бота.
+        // Окна, которые нельзя закрывать: настройки, меню и собственная панель бота.
         private static readonly string[] KeepTypes =
         {
             "ModSettings", "ModsConfig", "Dialog_Options", "Page_Options",
-            "Options", "Settings", "BrainWindow", "Dialog_Dev", "EditWindow"
+            "Options", "Settings", "BrainWindow", "Dialog_Dev", "EditWindow",
+            "MainMenu", "Menu", "LoadingScreen"
+        };
+
+        // Что считаем оповещением, а не рабочим окном игрока. Закрываем только
+        // такие окна и только если они останавливают игру (forcePause).
+        private static readonly string[] NotificationTypes =
+        {
+            "Dialog_MessageBox", "Dialog_NodeTree", "Dialog_Confirm",
+            "Dialog_Information", "Dialog_Message", "Dialog_Text",
+            "Dialog_Choice", "Dialog_Feedback"
         };
 
         public static void ResetRuntime()
@@ -44,8 +54,8 @@ namespace RimWorldBot.TradeEmpire
         public static string Line()
         {
             if (ClosedWindows + ClosedLetters + ClosedMessages == 0)
-                return "Окна и уведомления: пока нечего закрывать.";
-            return "Окна и уведомления: закрыто окон " + ClosedWindows
+                return "Оповещения: пока нечего закрывать.";
+            return "Оповещения: закрыто окон-оповещений " + ClosedWindows
                 + ", писем " + ClosedLetters + ", сообщений " + ClosedMessages + ".";
         }
 
@@ -86,7 +96,7 @@ namespace RimWorldBot.TradeEmpire
             {
                 if (w == null) continue;
                 string n = w.GetType().Name;
-                if (KeepType(w, n)) continue;
+                if (!ShouldClose(w, n)) continue;
 
                 float first;
                 if (!seen.TryGetValue(w, out first))
@@ -125,14 +135,29 @@ namespace RimWorldBot.TradeEmpire
             }
         }
 
-        private static bool KeepType(Window w, string n)
+        private static bool ShouldClose(Window w, string n)
         {
-            if (w is BrainWindow) return true;
-            if (w is FloatMenu) return true;               // контекстное меню игрока, не уведомление
+            if (w == null) return false;
+            if (w is BrainWindow || w is FloatMenu) return false;
+            if (KeepType(n)) return false;
+
+            // Меню и настройки не трогаем ни при каких обстоятельствах.
+            if (!w.forcePause) return false;              // только окна, которые останавливают игру
+
+            // Не закрываем торговлю, счета, настройки зданий и прочие рабочие окна.
+            foreach (string type in NotificationTypes)
+                if (!string.IsNullOrEmpty(n) && n.IndexOf(type, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            return false;
+        }
+
+        private static bool KeepType(string n)
+        {
             foreach (string keep in KeepTypes)
                 if (!string.IsNullOrEmpty(n) && n.IndexOf(keep, StringComparison.OrdinalIgnoreCase) >= 0)
                     return true;
-            if (n != null && n.IndexOf("RimWorldBot", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            if (!string.IsNullOrEmpty(n) && n.IndexOf("RimWorldBot", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
             return false;
         }
 

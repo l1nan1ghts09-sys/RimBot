@@ -53,6 +53,7 @@ namespace RimWorldBot.TradeEmpire
             Roofs.ResetRuntime();
             Zones.ResetRuntime();
             Patterns.ResetRuntime();
+            Housing.ResetRuntime();
             lastThought = 0;
             announced = false;
         }
@@ -83,7 +84,7 @@ namespace RimWorldBot.TradeEmpire
                 nextShelter = tick + 9000;
                 Utility.Weigh("shelter", "построить или достроить жильё", 0.85f, 0.25f, 0.05f, 1f,
                     "появятся стены, дверь и крыша, кровати перестанут мокнуть", "колонисты останутся под открытым небом",
-                    () => Shelter(map));
+                    () => Housing.Build(map, true));
             }
             if (tick >= nextEquip)
             {
@@ -720,12 +721,11 @@ namespace RimWorldBot.TradeEmpire
                 for (int z = 1; z < side - 1; z++)
                 {
                     IntVec3 c = new IntVec3(min.x + x, 0, min.z + z);
-                    if (!c.InBounds(map) || c.Roofed(map)) continue;
-                    map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
-                    changed = true;
+                    if (!c.InBounds(map)) continue;
+                    if (Roofs.RequestRoof(map, c)) changed = true;
                 }
             }
-            if (changed) Mind.Think("быт", "Стены готовы — накрыл комнату крышей. Теперь внутри можно ставить кровати и плиту.");
+            if (changed) Mind.Think("быт", "Стены готовы — попросил колонистов накрыть комнату крышей.");
             return changed;
         }
 

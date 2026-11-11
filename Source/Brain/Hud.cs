@@ -221,6 +221,7 @@ namespace RimWorldBot.TradeEmpire
             y += Label(v, y, Roofs.Line(w.map), 0);
             y += Label(v, y, Zones.Line(w.map), 0);
             y += Label(v, y, Patterns.Line(w.map), 0);
+            y += Label(v, y, Housing.Line(w.map), 0);
             y += Label(v, y, AutoClose.Line(), 0);
             y += 4f;
 

@@ -93,6 +93,60 @@ namespace RimWorldBot.TradeEmpire
             return marked;
         }
 
+        /// <summary>
+        /// Просит колонистов построить крышу в клетке через ванильную зону
+        /// «строить крышу». Никакого мгновенного SetRoof: нужна работа строителя.
+        /// </summary>
+        public static bool RequestRoof(Map map, IntVec3 c)
+        {
+            if (map == null || !c.InBounds(map)) return false;
+            try
+            {
+                if (c.Roofed(map)) return false;
+                if (map.areaManager.NoRoof[c]) map.areaManager.NoRoof[c] = false;
+                if (map.areaManager.BuildRoof[c]) return false;
+                map.areaManager.BuildRoof[c] = true;
+                return true;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Находит замкнутое помещение вокруг start и просит построить в нём крышу.
+        /// Возвращает число клеток, добавленных в зону строительства крыши.
+        /// </summary>
+        public static int RoofEnclosed(Map map, IntVec3 start, int maxCells)
+        {
+            if (map == null || !start.InBounds(map) || start.Roofed(map)) return 0;
+            var region = new HashSet<IntVec3>();
+            var queue = new Queue<IntVec3>();
+            queue.Enqueue(start);
+            region.Add(start);
+            int boundary = 0;
+            while (queue.Count > 0 && region.Count < maxCells)
+            {
+                IntVec3 c = queue.Dequeue();
+                foreach (IntVec3 n in GenAdj.CellsAdjacent8Way(new TargetInfo(c, map)))
+                {
+                    if (!n.InBounds(map) || region.Contains(n)) continue;
+                    if (!n.InHorDistOf(start, 14f)) continue;
+                    if (n.GetEdifice(map) != null) { boundary++; continue; }
+                    if (!n.Standable(map)) continue;
+                    region.Add(n);
+                    queue.Enqueue(n);
+                    if (region.Count >= maxCells) break;
+                }
+            }
+            if (region.Count < 4 || region.Count > maxCells || boundary < 8) return 0;
+            foreach (IntVec3 c in region)
+                if (c.x <= 1 || c.z <= 1 || c.x >= map.Size.x - 2 || c.z >= map.Size.z - 2) return 0;
+
+            int requested = 0;
+            foreach (IntVec3 c in region)
+                if (RequestRoof(map, c)) requested++;
+            return requested;
+        }
+
         /// <summary>Помечает клетку как «без крыши», если там есть снимаемая крыша.</summary>
         private static bool RemovableRoof(Map map, IntVec3 c)
         {

@@ -64,6 +64,7 @@ namespace RimWorldBot.TradeEmpire
             Roofs.ResetRuntime();
             Zones.ResetRuntime();
             Patterns.ResetRuntime();
+            Housing.ResetRuntime();
             Infrastructure.ResetRuntime();
             ThreatFix.ResetRuntime();
             Skills.ResetRuntime();
@@ -164,6 +165,7 @@ namespace RimWorldBot.TradeEmpire
             T.Safe("Roofs", () => Roofs.Run(map, tick));
             T.Safe("Zones", () => Zones.Run(map, tick));
             T.Safe("Patterns", () => Patterns.Run(map, tick));
+            T.Safe("Housing", () => Housing.Run(map, tick));
 
             // ---- упрощённый режим: только антикризисные модули ----
             if (!s.deepBrain)

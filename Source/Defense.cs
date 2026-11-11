@@ -21,6 +21,7 @@ namespace RimWorldBot.TradeEmpire
             public float vsMelee, vsRanged, vsSappers, vsDrop, vsInsects, vsManhunters, vsMechs;
             public int turrets, traps, cover, walls, roofed, gunners, fighters, medicine;
             public string tactic = "";
+            public string pattern = "line";
             public string text = "";
             public string shortText = "";
         }
@@ -135,6 +136,27 @@ namespace RimWorldBot.TradeEmpire
                     () => { placed += TryWalls(map, Math.Min(2, wallTarget - r.walls), pop); });
             }
 
+            if (r.pattern == "choke" && r.traps < trapTarget + 2 && r.difficulty >= 0.30f)
+            {
+                Utility.Weigh("def_choke", "перекрыть узкий проход пещеры/кармана", 0.70f, 0.10f, 0.08f, urgency,
+                    "ловушки в проходе остановят часть врагов до базы", "противник войдёт в укрытие целым",
+                    () => { placed += TryChokeDefense(map, Math.Min(3, trapTarget + 2 - r.traps)); });
+            }
+
+            if (r.pattern == "sapper" && r.walls < wallTarget + 2 && r.difficulty >= 0.45f)
+            {
+                Utility.Weigh("def_sapper", "сделать внутренний слой стен против сапёров", 0.58f, 0.14f, 0.06f, urgency,
+                    "сапёры упрутся в второй слой и потеряют время", "пролом сразу откроет внутренности базы",
+                    () => { placed += TrySapperWalls(map, 2); });
+            }
+
+            if (r.pattern == "inner" && r.cover < coverTarget + 3)
+            {
+                Utility.Weigh("def_inner", "поставить внутренние укрытия на случай десанта", 0.50f, 0.10f, 0.05f, urgency,
+                    "при десанте будет где укрыться внутри базы", "десант застанет колонистов в чистом поле",
+                    () => { placed += TryInteriorCover(map, 3); });
+            }
+
             if (s.defenseRoofs)
                 Utility.Weigh("def_roof", "накрыть крышей ключевые помещения", 0.55f, 0.06f, 0.02f, 0.9f,
                     "меньше порчи, дождя и токсичного fallout", "еда и вещи продолжат портиться",
@@ -210,14 +232,43 @@ namespace RimWorldBot.TradeEmpire
             r.difficulty = U.Clamp01(1f - avg * 0.85f + r.risk * 0.20f);
             r.level = r.difficulty < 0.35f ? "низкая" : r.difficulty < 0.55f ? "средняя"
                 : r.difficulty < 0.75f ? "высокая" : "критическая";
+            r.pattern = ChoosePattern(map, r);
             r.tactic = Tactic(map, r);
             r.text = "Оборона: сложность " + r.level + " (" + U.Pct(r.difficulty) + "), риск рейда " + U.Pct(r.risk)
                 + ". Шансы устоять: ближний бой " + U.Pct(r.vsMelee) + ", стрелки " + U.Pct(r.vsRanged)
                 + ", сапёры " + U.Pct(r.vsSappers) + ", десант " + U.Pct(r.vsDrop)
-                + ", насекомые " + U.Pct(r.vsInsects) + ", звери " + U.Pct(r.vsManhunters) + ", мехи " + U.Pct(r.vsMechs) + ".";
+                + ", насекомые " + U.Pct(r.vsInsects) + ", звери " + U.Pct(r.vsManhunters) + ", мехи " + U.Pct(r.vsMechs)
+                + ". Схема: " + PatternName(r.pattern) + ".";
             r.shortText = "Оборона: " + r.level + " (" + U.Pct(r.difficulty) + "), ближний " + U.Pct(r.vsMelee)
                 + ", стрелки " + U.Pct(r.vsRanged) + ", сапёры " + U.Pct(r.vsSappers) + ", десант " + U.Pct(r.vsDrop) + ".";
             return r;
+        }
+
+        private static string ChoosePattern(Map map, Report r)
+        {
+            bool cave = false;
+            try
+            {
+                Site.Info site = Site.Best(map);
+                cave = site != null && (site.cave || site.hollow || site.pocket);
+            }
+            catch { }
+            if (cave && r.vsMelee < 0.68f) return "choke";
+            if (r.vsSappers < 0.55f && r.risk >= 0.30f) return "sapper";
+            if (r.vsDrop < 0.50f) return "inner";
+            if (cave) return "choke";
+            return "line";
+        }
+
+        private static string PatternName(string p)
+        {
+            switch (p)
+            {
+                case "choke": return "узкий проход";
+                case "sapper": return "против сапёров";
+                case "inner": return "внутренняя оборона";
+                default: return "огневая линия";
+            }
         }
 
         private static string Tactic(Map map, Report r)
@@ -234,6 +285,9 @@ namespace RimWorldBot.TradeEmpire
                 if (live == "стрелки") return "огневая линия за укрытиями, турели держат фланг";
                 return "встреча у прохода, ловушки и копейщики впереди";
             }
+            if (r.pattern == "choke") return "узкий проход: ловушки и дверь, не растягиваться в поле";
+            if (r.pattern == "sapper") return "слои стен и ловушки на пути сапёров, резерв у пролома";
+            if (r.pattern == "inner") return "внутренние укрытия и турели: бой внутри базы, не под открытым небом";
             if (r.difficulty >= 0.70f) return "срочно: укрытия, ловушки, турели, крыша над жильём";
             if (r.difficulty >= 0.50f) return "линия укрытий и ловушки на подходе, турели по флангам";
             return "готовая линия обороны, дежурство и запас медикаментов";
@@ -380,6 +434,77 @@ namespace RimWorldBot.TradeEmpire
             return made;
         }
 
+        /// <summary>Ловушки в естественном узком проходе: две скалы/стены по бокам, вход и выход открыты.</summary>
+        private static int TryChokeDefense(Map map, int need)
+        {
+            if (need <= 0) return 0;
+            ThingDef trap = T.Def("TrapSpike") ?? T.Def("TrapIed");
+            if (trap == null) return 0;
+            IntVec3 anchor = Infrastructure.Anchor(map);
+            int made = 0;
+            for (int r = 6; r <= 20 && made < need; r++)
+            {
+                foreach (IntVec3 c in GenRadial.RadialCellsAround(anchor, r, true))
+                {
+                    if (made >= need) break;
+                    if (!Buildable(map, c) || c.Roofed(map)) continue;
+                    if (map.areaManager.Home != null && map.areaManager.Home[c]) continue;
+                    int rockSides = 0, openSides = 0;
+                    foreach (IntVec3 n in GenAdj.CellsAdjacent8Way(new TargetInfo(c, map)))
+                    {
+                        if (!n.InBounds(map)) continue;
+                        Thing ed = n.GetEdifice(map);
+                        if (ed != null && ed.def != null && (ed.def == ThingDefOf.Wall || ed.def.mineable)) rockSides++;
+                        else if (n.Standable(map) && ed == null) openSides++;
+                    }
+                    if (rockSides < 2 || openSides < 2) continue;
+                    if (TryBuild(map, trap, c, false)) made++;
+                }
+            }
+            return made;
+        }
+
+        /// <summary>Второй слой стен на пути сапёров: не сплошная стена, а короткие сегменты с проходом.</summary>
+        private static int TrySapperWalls(Map map, int need)
+        {
+            if (need <= 0) return 0;
+            ThingDef wall = ThingDefOf.Wall;
+            if (wall == null) return 0;
+            IntVec3 anchor = Infrastructure.Anchor(map);
+            IntVec3 dir = Outward(map, anchor);
+            IntVec3 side = new IntVec3(dir.z, 0, -dir.x);
+            int made = 0;
+            for (int d = 7; d <= 11 && made < need; d++)
+            {
+                foreach (int l in new[] { -5, -1, 2, 5 })
+                {
+                    if (made >= need) break;
+                    IntVec3 c = new IntVec3(anchor.x + dir.x * d + side.x * l, 0, anchor.z + dir.z * d + side.z * l);
+                    if (!Buildable(map, c)) continue;
+                    if (TryBuild(map, wall, c, true)) made++;
+                }
+            }
+            return made;
+        }
+
+        /// <summary>Внутренние укрытия для боя с десантом: не выходим под открытое небо.</summary>
+        private static int TryInteriorCover(Map map, int need)
+        {
+            if (need <= 0) return 0;
+            IntVec3 anchor = Infrastructure.Anchor(map);
+            int made = 0;
+            for (int r = 2; r <= 6 && made < need; r++)
+            {
+                foreach (IntVec3 c in GenRadial.RadialCellsAround(anchor, r, true))
+                {
+                    if (made >= need) break;
+                    if (!Buildable(map, c) || c.Roofed(map)) continue;
+                    if (TryBuild(map, T.Def("Barricade") ?? T.Def("Sandbags"), c, true)) made++;
+                }
+            }
+            return made;
+        }
+
         /// <summary>Крыша над ключевыми помещениями: спальни, кухня, исследование, склад.</summary>
         private static int RoofKeyRooms(Map map)
         {
@@ -418,37 +543,13 @@ namespace RimWorldBot.TradeEmpire
             return changed;
         }
 
-        /// <summary>Заливает крышей замкнутое помещение вокруг клетки, если оно небольшое и реально окружено стенами.</summary>
+        /// <summary>
+        /// Закрывает крышей замкнутое помещение вокруг клетки. Это именно зона
+        /// «строить крышу»: крышу возводят колонисты, а не телепортирует бот.
+        /// </summary>
         private static int RoofRoom(Map map, IntVec3 start, int maxCells)
         {
-            if (!start.InBounds(map) || start.Roofed(map)) return 0;
-            var region = new HashSet<IntVec3>();
-            var queue = new Queue<IntVec3>();
-            queue.Enqueue(start);
-            region.Add(start);
-            int boundary = 0;
-            while (queue.Count > 0 && region.Count < maxCells)
-            {
-                IntVec3 c = queue.Dequeue();
-                foreach (IntVec3 n in GenAdj.CellsAdjacent8Way(new TargetInfo(c, map)))
-                {
-                    if (!n.InBounds(map) || region.Contains(n)) continue;
-                    if (!n.InHorDistOf(start, 14f)) continue;
-                    if (n.GetEdifice(map) != null) { boundary++; continue; }
-                    if (!n.Standable(map)) continue;
-                    region.Add(n);
-                    queue.Enqueue(n);
-                    if (region.Count >= maxCells) break;
-                }
-            }
-            if (region.Count < 4 || region.Count > maxCells || boundary < 8) return 0;
-            foreach (IntVec3 c in region)
-                if (c.x <= 1 || c.z <= 1 || c.x >= map.Size.x - 2 || c.z >= map.Size.z - 2) return 0;
-
-            int changed = 0;
-            foreach (IntVec3 c in region)
-                if (!c.Roofed(map)) { map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed); changed++; }
-            return changed;
+            return Roofs.RoofEnclosed(map, start, maxCells);
         }
 
         // ------------------------------------------------------------------ материалы
