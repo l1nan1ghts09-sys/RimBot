@@ -14,9 +14,10 @@ namespace RimWorldBot.TradeEmpire
     public static class Patterns
     {
         private static int next;
+        private static bool caveRoomDone;
         private static string line = "Паттерны: оцениваю рельеф и раннюю экономику.";
 
-        public static void ResetRuntime() { next = 0; line = "Паттерны: оцениваю рельеф и раннюю экономику."; }
+        public static void ResetRuntime() { next = 0; caveRoomDone = false; line = "Паттерны: оцениваю рельеф и раннюю экономику."; }
         public static string Line(Map map) { return line; }
 
         public static void Run(Map map, int tick)
@@ -48,6 +49,12 @@ namespace RimWorldBot.TradeEmpire
 
             string text = "Пещера: естественные стены и горная крыша уже дают укрытие.";
             int changed = 0;
+            if (!caveRoomDone && Beds(map) < Math.Max(1, map.mapPawns.FreeColonistsSpawnedCount)
+                && TryCaveRoom(map, site))
+            {
+                changed++;
+                text += " Вырубил комнату прямо в скале — не трачу блоки и дерево на стены.";
+            }
             if (!HasDoorNear(map, Infrastructure.Anchor(map), 16) && TryChokeDoor(map, site))
             {
                 changed++;
@@ -71,7 +78,7 @@ namespace RimWorldBot.TradeEmpire
                 if (batteries == 0) return false;
                 ThingDef popper = T.Def("FirefoamPopper");
                 if (popper == null || !Infrastructure.Available(popper)) return false;
-                if (map.listerBuildings.allBuildingsColonist.Any(b => b != null && b.def == popper)) return false;
+                if (Infrastructure.Exists(map, popper)) return false; // уже есть дом, чертёж или каркас
 
                 Building battery = map.listerBuildings.allBuildingsColonist.FirstOrDefault(b =>
                     b != null && b.def != null && b.def.defName != null
@@ -89,6 +96,89 @@ namespace RimWorldBot.TradeEmpire
             }
             catch (Exception e) { T.Warn("Пожарная безопасность: " + e.Message); }
             return false;
+        }
+
+        private static int Beds(Map map)
+        {
+            try { return map.listerBuildings.allBuildingsColonist.OfType<Building_Bed>().Count(); }
+            catch { return 0; }
+        }
+
+        /// <summary>
+        /// Дешёвое жильё в пещере: вырубает комнату 3×3 прямо в скале у базы,
+        /// сохраняя горную крышу. Это заменяет постройку стен из блоков/дерева.
+        /// </summary>
+        private static bool TryCaveRoom(Map map, Site.Info site)
+        {
+            if (map == null || site == null) return false;
+            try
+            {
+                int mine = 0;
+                foreach (Designation d in map.designationManager.AllDesignations)
+                    if (d.def == DesignationDefOf.Mine) mine++;
+                if (mine >= 8) return false; // бот уже занят добычей
+
+                IntVec3 anchor = Infrastructure.Anchor(map);
+                for (int r = 4; r <= 14; r++)
+                {
+                    foreach (IntVec3 c in GenRadial.RadialCellsAround(anchor, r, true))
+                    {
+                        if (!c.InBounds(map) || c.Fogged(map) || !HasMountainRoof(map, c)) continue;
+                        if (!Mineable(map, c)) continue;
+
+                        List<IntVec3> block = new List<IntVec3>();
+                        bool ok = true;
+                        for (int dx = -1; dx <= 1 && ok; dx++)
+                        {
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                IntVec3 n = new IntVec3(c.x + dx, 0, c.z + dz);
+                                if (!n.InBounds(map) || !Mineable(map, n) || !HasMountainRoof(map, n)) { ok = false; break; }
+                                Thing rock = n.GetEdifice(map);
+                                if (map.designationManager.DesignationOn(rock, DesignationDefOf.Mine) != null) { ok = false; break; }
+                                block.Add(n);
+                            }
+                        }
+                        if (!ok || block.Count < 9) continue;
+
+                        int open = 0;
+                        foreach (IntVec3 n in block)
+                        {
+                            foreach (IntVec3 a in GenAdj.CellsAdjacent8Way(new TargetInfo(n, map)))
+                            {
+                                if (!a.InBounds(map) || block.Contains(a)) continue;
+                                if (a.Standable(map) && a.GetEdifice(map) == null) open++;
+                            }
+                        }
+                        if (open < 2) continue;
+
+                        foreach (IntVec3 n in block)
+                        {
+                            Thing rock = n.GetEdifice(map);
+                            if (rock != null) map.designationManager.AddDesignation(new Designation(rock, DesignationDefOf.Mine));
+                        }
+                        caveRoomDone = true;
+                        Mind.Think("пещера", "Вырубаю комнату 3×3 в скале у базы: горная крыша остаётся, стены уже есть, материалы не тратятся.");
+                        return true;
+                    }
+                }
+            }
+            catch (Exception e) { T.Warn("Комната в скале: " + e.Message); }
+            return false;
+        }
+
+        private static bool Mineable(Map map, IntVec3 c)
+        {
+            Thing ed = c.GetEdifice(map);
+            return ed != null && ed.def != null && ed.def.mineable;
+        }
+
+        private static bool HasMountainRoof(Map map, IntVec3 c)
+        {
+            RoofDef rd = null;
+            try { rd = map.roofGrid.RoofAt(c); } catch { }
+            return rd != null && rd.defName != null
+                && rd.defName.IndexOf("Rock", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static bool HasDoorNear(Map map, IntVec3 center, int radius)

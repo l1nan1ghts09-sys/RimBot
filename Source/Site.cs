@@ -29,14 +29,21 @@ namespace RimWorldBot.TradeEmpire
 
         private static Map cachedMap;
         private static Info cached;
+        private static int cachedAt = -99999;
 
-        public static void ResetRuntime() { cachedMap = null; cached = null; }
+        public static void ResetRuntime() { cachedMap = null; cached = null; cachedAt = -99999; }
+        public static void Invalidate() { cached = null; cachedAt = -99999; }
 
         public static Info Best(Map map)
         {
             if (map == null) return new Info();
-            if (cachedMap == map && cached != null) return cached;
+            int now = 0;
+            try { now = Find.TickManager != null ? Find.TickManager.TicksGame : 0; } catch { }
+            // Рельеф не меняется, но кровати/дома меняют смысл центра базы: обновляем
+            // не на каждом тике, а раз в 3000 тиков, чтобы не сканировать карту зря.
+            if (cachedMap == map && cached != null && now - cachedAt < 3000) return cached;
             cachedMap = map;
+            cachedAt = now;
             cached = Compute(map);
             return cached;
         }
@@ -94,7 +101,8 @@ namespace RimWorldBot.TradeEmpire
                 int wood = T.Count(map, ThingDefOf.WoodLog);
                 int steel = T.Count(map, ThingDefOf.Steel);
                 int blocks = T.Count(map, T.Def("BlocksGranite")) + T.Count(map, T.Def("BlocksLimestone"))
-                    + T.Count(map, T.Def("BlocksSlate")) + T.Count(map, T.Def("BlocksSandstone"));
+                    + T.Count(map, T.Def("BlocksSlate")) + T.Count(map, T.Def("BlocksSandstone"))
+                    + T.Count(map, T.Def("BlocksMarble"));
                 bool poor = wealth < 12000f || wood + steel + blocks < 700;
 
                 float bestScore = -999f;

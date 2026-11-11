@@ -99,8 +99,9 @@ namespace RimWorldBot.TradeEmpire
             RoofDef rd = null;
             try { rd = map.roofGrid.RoofAt(c); } catch { }
             if (rd == null) return false;
-            if (rd.isThickRoof) return false;                         // горную крышу снять нельзя
-            if (rd.defName != null && rd.defName.IndexOf("Rock", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            // Толстый горный навес снять нельзя; тонкая скальная крыша ванильным
+            // инструментом «без крыши» снимается, поэтому её не запрещаем.
+            if (rd.isThickRoof) return false;
             return true;
         }
 
