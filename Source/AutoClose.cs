@@ -81,7 +81,8 @@ namespace RimWorldBot.TradeEmpire
 
             Window closing = null;
             int closedNow = 0;
-            foreach (Window w in windows)
+            // Сверху вниз: сначала убираем верхнюю модалку, чтобы не закрыть её родителя.
+            foreach (Window w in windows.AsEnumerable().Reverse())
             {
                 if (w == null) continue;
                 string n = w.GetType().Name;
@@ -101,6 +102,10 @@ namespace RimWorldBot.TradeEmpire
                 try
                 {
                     w.Close(true);
+                    if (w is Dialog_Trade)
+                    {
+                        try { if (TradeSession.Active) TradeSession.Close(); } catch { }
+                    }
                     ClosedWindows++;
                     closing = w;
                     LastAction = "Закрыл окно «" + FriendlyName(n) + "».";
