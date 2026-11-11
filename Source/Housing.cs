@@ -87,7 +87,7 @@ namespace RimWorldBot.TradeEmpire
                 return true;
             }
 
-            // 2) В пещере/скальном кармане естественная крыша уже есть: не тратим
+            // 2) В пещере/углублении естественная крыша уже есть: не тратим
             //    блоки на коробку, а просто ставим кровать под горной крышей.
             if (naturalShelter && EnsureBed(map, ref roofedBeds))
             {
@@ -111,15 +111,17 @@ namespace RimWorldBot.TradeEmpire
                 return false;
             }
 
-            // 5) Уже есть незавершённые стены/двери — не плодим второй чертёж.
-            if (PendingHouseBlueprints(map) >= 4)
+            // 5) Уже есть заложенная дверь дома — не плодим второй чертёж.
+            //    Стены обороны дверьми не считаются, иначе дом ждал бы вечно.
+            if (PendingHouseBlueprints(map) >= 1)
             {
                 line = "Дом: стены уже заложены чертежами, жду строителей (готово " + roofedBeds + "/" + pop + ").";
                 return false;
             }
 
             // 6) Выбираем осмысленный шаблон под ресурсы и задачу.
-            Plan plan = ChoosePlan(map, pop, site, urgent, pocket);
+            bool underPressure = Utility.ThreatPressure(map) >= 0.55f;
+            Plan plan = ChoosePlan(map, pop, site, urgent, pocket, underPressure);
             if (plan == null)
             {
                 line = "Дом: не хватает дерева/блоков на коробку — коплю материалы или строю пещеру.";
@@ -140,7 +142,7 @@ namespace RimWorldBot.TradeEmpire
 
         // ------------------------------------------------------------ шаблоны
 
-        private static Plan ChoosePlan(Map map, int pop, Site.Info site, bool urgent, bool pocket)
+        private static Plan ChoosePlan(Map map, int pop, Site.Info site, bool urgent, bool pocket, bool underPressure)
         {
             int wood = T.Count(map, ThingDefOf.WoodLog);
             int stone = 0;
@@ -153,7 +155,8 @@ namespace RimWorldBot.TradeEmpire
             // Размер: маленький стартовый домик, если людей мало или материалов в обрез;
             // иначе — по населению, но без гигантомании на бедной колонии.
             int side;
-            if (urgent && wood + stone < 260) side = 5;
+            if (underPressure) side = 5;                 // под угрозой — быстрый маленький дом
+            else if (urgent && wood + stone < 260) side = 5;
             else if (pop <= 2 || wood + stone < 260) side = 5;
             else if (pop <= 4 || wood + stone < 520) side = 7;
             else side = 9;
@@ -180,7 +183,9 @@ namespace RimWorldBot.TradeEmpire
                 wallCells = wallCells,
                 name = size + " " + kind + " дом " + side + "×" + side,
                 why = "запас " + (stuff == ThingDefOf.WoodLog ? "дерева " + wood : "камня " + stone)
-                    + ", людей " + pop + (urgent ? ", жильё срочно" : "") + "; " + whyStuff
+                    + ", людей " + pop + (urgent ? ", жильё срочно" : "")
+                    + (underPressure ? ", под угрозой — компактно" : "") + "; " + whyStuff
+                    + (Focus.Active ? ", задача: " + Focus.Title : "")
             };
         }
 
@@ -282,24 +287,28 @@ namespace RimWorldBot.TradeEmpire
 
         private static int PendingHouseBlueprints(Map map)
         {
-            int n = 0;
+            int doors = 0, walls = 0;
             try
             {
                 foreach (Thing t in map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint))
                 {
                     if (t == null || t.Faction != Faction.OfPlayer) continue;
                     ThingDef bd = t.def != null ? t.def.entityDefToBuild as ThingDef : null;
-                    if (bd == ThingDefOf.Wall || bd == ThingDefOf.Door) n++;
+                    if (bd == ThingDefOf.Door) doors++;
+                    else if (bd == ThingDefOf.Wall) walls++;
                 }
                 foreach (Thing t in map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingFrame))
                 {
                     if (t == null || t.Faction != Faction.OfPlayer) continue;
                     ThingDef bd = t.def != null ? t.def.entityDefToBuild as ThingDef : null;
-                    if (bd == ThingDefOf.Wall || bd == ThingDefOf.Door) n++;
+                    if (bd == ThingDefOf.Door) doors++;
+                    else if (bd == ThingDefOf.Wall) walls++;
                 }
             }
             catch { }
-            return n;
+            // Дверь — точный признак дома. Стены обороны сами по себе домом не
+            // считаются, поэтому порог 8 отсекает только большой контур.
+            return doors > 0 || walls >= 8 ? 1 : 0;
         }
 
         private static int RequestMissingRoof(Map map)
@@ -318,7 +327,7 @@ namespace RimWorldBot.TradeEmpire
                 if (requested > 0) return requested;
 
                 IntVec3 anchor = Infrastructure.Anchor(map);
-                for (int r = 0; r <= 16 && requested == 0; r += 2)
+                for (int r = 0; r <= 22 && requested == 0; r += 2)
                 {
                     foreach (IntVec3 c in GenRadial.RadialCellsAround(anchor, r, true))
                     {
@@ -353,6 +362,12 @@ namespace RimWorldBot.TradeEmpire
             try
             {
                 foreach (Thing t in map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint))
+                {
+                    if (t == null || t.Faction != Faction.OfPlayer) continue;
+                    ThingDef bd = t.def != null ? t.def.entityDefToBuild as ThingDef : null;
+                    if (bd != null && bd.thingClass != null && typeof(Building_Bed).IsAssignableFrom(bd.thingClass)) n++;
+                }
+                foreach (Thing t in map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingFrame))
                 {
                     if (t == null || t.Faction != Faction.OfPlayer) continue;
                     ThingDef bd = t.def != null ? t.def.entityDefToBuild as ThingDef : null;
