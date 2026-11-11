@@ -114,6 +114,7 @@ namespace RimWorldBot.TradeEmpire
                 if (b != null && b.World != null)
                 {
                     float d = b.World.foodDays;
+                    if (b.World.foodSafeDays > 0f && b.World.foodSafeDays < d) d = b.World.foodSafeDays;
                     return U.Clamp01((12f - d) / 12f);
                 }
             }
