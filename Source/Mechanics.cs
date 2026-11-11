@@ -28,6 +28,7 @@ namespace RimWorldBot.TradeEmpire
                 Recreation(map);
                 Climate(map);
                 Beauty(map);
+                Lighting(map);
                 line = BuildLine(map);
             }
             catch (Exception e) { T.Warn("Механики: " + e.Message); }
@@ -119,6 +120,25 @@ namespace RimWorldBot.TradeEmpire
             return true;
         }
 
+        // ------------------------------------------------------------ свет
+        private static void Lighting(Map map)
+        {
+            IntVec3 anchor = Infrastructure.Anchor(map);
+            float glow = 1f;
+            try { glow = map.glowGrid.GroundGlowAt(anchor); } catch { }
+            if (glow >= 0.35f) return;
+            if (map.listerBuildings.allBuildingsColonist.Any(b => b.def.defName != null
+                && (b.def.defName.IndexOf("Lamp", StringComparison.OrdinalIgnoreCase) >= 0
+                    || b.def.defName.IndexOf("Torch", StringComparison.OrdinalIgnoreCase) >= 0))) return;
+            ThingDef def = FirstAvailable("StandingLamp", "TorchLamp", "Campfire");
+            if (def == null) return;
+            if (!Utility.WeighOnly("light", "осветить базу", 0.35f, 0.05f, 0.01f, 1f,
+                "в свете колонисты работают быстрее и меньше нервничают",
+                "тёмные комнаты снижают скорость и настроение")) return;
+            if (Infrastructure.PlaceNear(map, def, anchor, 2, 14, true))
+                Mind.Think("свет", "Ставлю «" + def.label + "»: у базы темно, а свет нужен для работы и настроения.");
+        }
+
         // ------------------------------------------------------------ красота
         private static void Beauty(Map map)
         {
@@ -151,8 +171,12 @@ namespace RimWorldBot.TradeEmpire
             int sculptures = map.listerBuildings.allBuildingsColonist.Count(b => b.def.defName != null && b.def.defName.StartsWith("Sculpture"));
             int coolers = map.listerBuildings.allBuildingsColonist.Count(b => b.def.defName != null && b.def.defName.IndexOf("Cooler", StringComparison.OrdinalIgnoreCase) >= 0);
             int heaters = map.listerBuildings.allBuildingsColonist.Count(b => b.def.defName != null && b.def.defName.IndexOf("Heater", StringComparison.OrdinalIgnoreCase) >= 0);
+            int lamps = map.listerBuildings.allBuildingsColonist.Count(b => b.def.defName != null
+                && (b.def.defName.IndexOf("Lamp", StringComparison.OrdinalIgnoreCase) >= 0
+                    || b.def.defName.IndexOf("Torch", StringComparison.OrdinalIgnoreCase) >= 0));
             return "Механики: отдых " + joy + ", скульптур " + sculptures + ", охладителей " + coolers
-                + ", обогревателей " + heaters + "; лечение, животные, пленные и идеология — в профильных модулях.";
+                + ", обогревателей " + heaters + ", светильников " + lamps
+                + "; лечение, животные, пленные и идеология — в профильных модулях.";
         }
     }
 }

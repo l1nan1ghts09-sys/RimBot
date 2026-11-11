@@ -75,7 +75,7 @@ namespace RimWorldBot.TradeEmpire
             if (EnsurePreservation(map, r)) changed++;
             Storage.EnsureFood(map);
             if (changed > 0)
-                Mind.Think("еда", "Порча еды: " + r.line + " Включил доступ к еде" + (changed > 0 ? " и поставил заготовку долгого хранения." : "."));
+                Mind.Think("еда", "Порча еды: " + r.line + " Дал доступ к еде и/или поставил заготовку долгого хранения.");
         }
 
         public static string Line(Map map)
@@ -152,6 +152,7 @@ namespace RimWorldBot.TradeEmpire
                 foreach (Thing t in map.listerThings.AllThings)
                 {
                     if (t == null || t.def == null || t.Destroyed || !t.Spawned) continue;
+                    if (!HumanFood(t.def)) continue;
                     float n;
                     if (!nut.TryGetValue(t.def, out n) || n <= 0f) continue;
                     if (t.stackCount <= 0) continue;
@@ -180,6 +181,17 @@ namespace RimWorldBot.TradeEmpire
             return list;
         }
 
+        /// <summary>Еда, которую реально едят люди, а не сено/киббл для животных.</summary>
+        private static bool HumanFood(ThingDef d)
+        {
+            if (d == null || d.ingestible == null || d.IsDrug || d.IsCorpse) return false;
+            FoodTypeFlags ft = d.ingestible.foodType;
+            if ((ft & FoodTypeFlags.Kibble) != 0) return false;
+            if ((ft & FoodTypeFlags.Plant) != 0 && (ft & FoodTypeFlags.Meal) == 0) return false;
+            if ((ft & FoodTypeFlags.Tree) != 0) return false;
+            return true;
+        }
+
         /// <summary>Долгий запас: пеммикан или упакованные пайки, если простая еда сгниёт.</summary>
         private static bool EnsurePreservation(Map map, Report r)
         {
@@ -199,7 +211,7 @@ namespace RimWorldBot.TradeEmpire
                     {
                         if (recipe == null || !recipe.AvailableNow || recipe.products == null || recipe.products.Count == 0) continue;
                         ThingDef p = recipe.products[0].thingDef;
-                        if (p == null) continue;
+                        if (p == null || !HumanFood(p)) continue;
                         float nutrition;
                         if (!DefExpert.NutritionMap.TryGetValue(p, out nutrition) || nutrition <= 0f) continue;
                         CompProperties_Rottable props = p.GetCompProperties<CompProperties_Rottable>();
