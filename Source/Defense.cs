@@ -54,6 +54,12 @@ namespace RimWorldBot.TradeEmpire
                 if (GenHostility.AnyHostileActiveThreatToPlayer(map))
                 {
                     last = Assess(map);
+                    if (last.level != lastLevel || tick - lastReportTick > 24000)
+                    {
+                        lastLevel = last.level;
+                        lastReportTick = tick;
+                        Mind.Think("оборона", "Бой: " + last.shortText + " Тактика: " + last.tactic + ".");
+                    }
                     return;
                 }
                 Prepare(map, tick);
@@ -87,7 +93,7 @@ namespace RimWorldBot.TradeEmpire
             int pop = Math.Max(1, map.mapPawns.FreeColonistsSpawnedCount);
             int placed = 0;
             int pending = PendingBlueprints(map);
-            if (pending >= 8) return;
+            if (pending >= 40) return;                 // не заваливаем колонию чертежами, но обороне не мешаем
 
             int coverTarget = Math.Min(8, Math.Max(3, pop));
             int trapTarget = Math.Min(Math.Max(0, s.defenseTrapCap), Math.Max(2, pop / 2 + 1));
@@ -99,13 +105,13 @@ namespace RimWorldBot.TradeEmpire
                 placed += TryTurret(map, r, pop);
 
             if (r.cover < coverTarget)
-                placed += TryFiringLine(map, coverTarget - r.cover, pop);
+                placed += TryFiringLine(map, Math.Min(4, coverTarget - r.cover), pop);
 
             if (r.traps < trapTarget)
-                placed += TryTraps(map, trapTarget - r.traps, pop);
+                placed += TryTraps(map, Math.Min(3, trapTarget - r.traps), pop);
 
             if (r.walls < wallTarget && r.difficulty >= 0.40f)
-                placed += TryWalls(map, wallTarget - r.walls, pop);
+                placed += TryWalls(map, Math.Min(2, wallTarget - r.walls), pop);
 
             if (s.defenseRoofs)
                 placed += RoofKeyRooms(map);
