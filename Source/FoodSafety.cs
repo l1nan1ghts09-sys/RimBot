@@ -168,13 +168,13 @@ namespace RimWorldBot.TradeEmpire
                     e.forbidden = t.IsForbidden(Faction.OfPlayer);
                     CompRottable rot = t.TryGetComp<CompRottable>();
                     e.rottable = rot != null;
-                    if (rot == null || rot.Stage == RotStage.Dessicated)
+                    if (rot == null)
                     {
                         e.rotDays = 9999f;
                     }
-                    else if (rot.Stage == RotStage.Rotting)
+                    else if (rot.Stage == RotStage.Rotting || rot.Stage == RotStage.Dessicated)
                     {
-                        e.rotDays = 0f;
+                        e.rotDays = 0f;   // уже испорчено/высохло — не считаем едой
                     }
                     else
                     {
