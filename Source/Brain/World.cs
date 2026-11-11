@@ -465,6 +465,9 @@ namespace RimWorldBot.TradeEmpire
             if (threat && threatRatio > 0.9f) return "Угроза: враги сильнее нас (" + hostiles + " на карте, " + U.Pct(threatRatio) + " от нашей силы).";
             if (foodDays < 2f || starving > 0) return "Голод: еды на " + U.F(foodDays) + " дн., голодающих " + hungry + ".";
             if (downed > 0 || bleeding > 0) return "Медицина: лежачих " + downed + ", кровотечений " + bleeding + ".";
+            if (foodSpoilPct > 0.15f) return "Порча еды: сгниёт " + U.Pct(foodSpoilPct) + " запаса, до порчи успеем съесть "
+                + U.F(foodSafeDays) + " дн. — нужен холод и долгий запас.";
+            if (outdoorDeteriorating > 0) return "Ветшание: " + outdoorDeteriorating + " вещей на улице теряют прочность — убираю под крышу.";
             if (foodDays < foodTargetDays * 0.6f) return "Еда: запас " + U.F(foodDays) + " дн. при цели " + U.F(foodTargetDays) + " — расширяю производство.";
             if (moodUrgency > 0.25f) return "Настроение " + U.Pct(moodAvg) + ": риск срывов, даю отдых.";
             if (powerDeficit > 50f) return "Энергия: не хватает " + (int)powerDeficit + " Вт.";

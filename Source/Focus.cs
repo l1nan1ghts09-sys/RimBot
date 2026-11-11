@@ -61,6 +61,16 @@ namespace RimWorldBot.TradeEmpire
                 float research = 0.42f;
                 float storage = 0.22f;
                 float trade = 0.25f;
+                try
+                {
+                    BrainComponent bc = BrainComponent.Get();
+                    if (bc != null && bc.World != null)
+                    {
+                        storage += U.Clamp01(bc.World.foodSpoilPct) * 0.45f
+                            + U.Clamp01(bc.World.outdoorDeteriorating / 5f) * 0.30f;
+                    }
+                }
+                catch { }
                 scores[Kind.Defense] = defense;
                 scores[Kind.Food] = food;
                 scores[Kind.Shelter] = shelter;
@@ -117,12 +127,14 @@ namespace RimWorldBot.TradeEmpire
         private static float ScoreFood(Map map)
         {
             float days = 10f;
+            float spoil = 0f;
             try
             {
                 BrainComponent b = BrainComponent.Get();
-                if (b != null && b.World != null) days = b.World.foodDays;
+                if (b != null && b.World != null) { days = b.World.foodDays; spoil = b.World.foodSpoilPct; }
             }
             catch { }
+            if (spoil > 0.12f) return Mathf.Max(1.15f, days < 7f ? 1.25f : 0f);
             if (days < 3f) return 1.6f;
             if (days < 7f) return 1.1f;
             if (days < 12f) return 0.7f;
