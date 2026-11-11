@@ -61,6 +61,9 @@ namespace RimWorldBot.TradeEmpire
             Watchdog.ResetRuntime();
             Survival.ResetRuntime();
             Vanilla.ResetRuntime();
+            Roofs.ResetRuntime();
+            Zones.ResetRuntime();
+            Patterns.ResetRuntime();
             Infrastructure.ResetRuntime();
             ThreatFix.ResetRuntime();
             Skills.ResetRuntime();
@@ -158,6 +161,9 @@ namespace RimWorldBot.TradeEmpire
             T.Safe("FoodSafety", () => FoodSafety.Run(map, tick));
             T.Safe("Deterioration", () => Deterioration.Run(map, tick));
             T.Safe("Mechanics", () => Mechanics.Run(map, tick));
+            T.Safe("Roofs", () => Roofs.Run(map, tick));
+            T.Safe("Zones", () => Zones.Run(map, tick));
+            T.Safe("Patterns", () => Patterns.Run(map, tick));
 
             // ---- упрощённый режим: только антикризисные модули ----
             if (!s.deepBrain)

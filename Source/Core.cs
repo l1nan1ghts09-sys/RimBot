@@ -62,6 +62,9 @@ namespace RimWorldBot.TradeEmpire
         public bool focusTasks = true;        // одна главная задача за раз, без распыления
         public bool autoCloseWindows = true;  // закрывать всплывающие окна поверх игры
         public bool autoCloseNotifications = true; // убирать письма и всплывающие сообщения
+        public bool autoRoofs = true;          // снимать крышу над солнечными панелями/грядками
+        public bool autoZoneCleanup = true;    // убирать пустые и дублирующиеся зоны
+        public bool autoPatterns = true;       // пещерная база, пожарная безопасность и т.п.
 
         public override void ExposeData()
         {
@@ -115,6 +118,9 @@ namespace RimWorldBot.TradeEmpire
             Scribe_Values.Look(ref focusTasks, "focusTasks", true);
             Scribe_Values.Look(ref autoCloseWindows, "autoCloseWindows", true);
             Scribe_Values.Look(ref autoCloseNotifications, "autoCloseNotifications", true);
+            Scribe_Values.Look(ref autoRoofs, "autoRoofs", true);
+            Scribe_Values.Look(ref autoZoneCleanup, "autoZoneCleanup", true);
+            Scribe_Values.Look(ref autoPatterns, "autoPatterns", true);
             base.ExposeData();
         }
     }
@@ -211,6 +217,9 @@ namespace RimWorldBot.TradeEmpire
             l.CheckboxLabeled("Одна главная задача за раз (не распыляться)", ref S.focusTasks);
             l.CheckboxLabeled("Закрывать всплывающие окна поверх игры", ref S.autoCloseWindows);
             l.CheckboxLabeled("Убирать письма и всплывающие сообщения", ref S.autoCloseNotifications);
+            l.CheckboxLabeled("Снимать крышу над панелями и грядками", ref S.autoRoofs);
+            l.CheckboxLabeled("Убирать пустые и дублирующиеся зоны", ref S.autoZoneCleanup);
+            l.CheckboxLabeled("Умные паттерны: пещера, двери, пожарная защита", ref S.autoPatterns);
             l.GapLine();
             l.Label(Ledger.Summary());
             l.End();

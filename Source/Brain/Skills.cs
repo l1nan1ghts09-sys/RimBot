@@ -94,6 +94,18 @@ namespace RimWorldBot.TradeEmpire
             Add(new Skill("clean", "Уборка", "быт", GoalId.Clean, 8000, 30000, MetricKind.Mood,
                 w => w != null && w.pop > 1, Clean));
 
+            // --- рельеф, интерфейс и бытовые паттерны ---
+            Add(new Skill("cave_base", "Пещерная база: узкий вход и естественные стены", "быт", GoalId.Housing, 9000, 60000, MetricKind.Defense,
+                w => w != null && w.map != null && (w.caveBase || w.hollowBase), CaveBasePattern));
+            Add(new Skill("fire_safety", "Пожарная безопасность у батарей", "быт", GoalId.Housing, 12000, 90000, MetricKind.Housing,
+                w => w != null && w.map != null && w.map.listerBuildings.allBuildingsColonist.Any(b =>
+                    b != null && b.def != null && b.def.defName != null
+                    && b.def.defName.IndexOf("Battery", StringComparison.OrdinalIgnoreCase) >= 0), FireSafetyPattern));
+            Add(new Skill("roof_clear", "Снять лишнюю крышу с панелей и грядок", "быт", GoalId.Housing, 10000, 60000, MetricKind.Housing,
+                w => w != null && w.map != null && Roofs.NeedsWork(w.map), RoofClear));
+            Add(new Skill("zone_cleanup", "Убрать пустые и дублирующиеся зоны", "быт", GoalId.Housing, 14000, 60000, MetricKind.Housing,
+                w => w != null && w.map != null && Zones.HasObsolete(w.map), ZoneCleanup));
+
             // --- наука ---
             Add(new Skill("research", "Выбор исследования", "наука", GoalId.Research, 1500, 60000, MetricKind.Research,
                 w => w != null && w.researchAvailable > 0, ResearchAdvisor.Step));
@@ -478,6 +490,36 @@ namespace RimWorldBot.TradeEmpire
                 ? "Жильё: кроватей " + w.beds + " на " + w.pop + " — заложил ещё одну."
                 : "Жильё: кроватей " + w.beds + " на " + w.pop + " — проверяю базовые постройки.";
             return SkillResult.Yes(msg, MetricKind.Housing, 60000);
+        }
+
+        private static SkillResult CaveBasePattern(ColonyWorld w)
+        {
+            string msg = Patterns.CavePattern(w.map);
+            return SkillResult.Yes(msg, MetricKind.Defense, 60000);
+        }
+
+        private static SkillResult FireSafetyPattern(ColonyWorld w)
+        {
+            bool ok = Patterns.FireSafety(w.map);
+            return ok
+                ? SkillResult.Yes("Пожарная безопасность: поставил пенную ловушку у батарей.", MetricKind.Housing, 90000)
+                : SkillResult.No("Пожарная безопасность: батареи есть, но подходящее место или материал пока не найдены.");
+        }
+
+        private static SkillResult RoofClear(ColonyWorld w)
+        {
+            int n = Roofs.MarkProblemRoofs(w.map);
+            return n > 0
+                ? SkillResult.Yes("Крыша: снимаю её с " + n + " клеток над панелями/грядками — свет важнее.", MetricKind.Housing, 60000)
+                : SkillResult.No("Крыша: мешающих участков не нашёл.");
+        }
+
+        private static SkillResult ZoneCleanup(ColonyWorld w)
+        {
+            int n = Zones.Cleanup(w.map);
+            return n > 0
+                ? SkillResult.Yes("Зоны: убрал " + n + " пустых/дублирующихся зон.", MetricKind.Housing, 60000)
+                : SkillResult.No("Зоны: устаревших зон нет.");
         }
 
         private static SkillResult Clean(ColonyWorld w)

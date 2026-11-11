@@ -46,6 +46,8 @@ namespace RimWorldBot.TradeEmpire
         public int outdoorDeteriorating;
         public int medicine, medicinePotency, silver, steel, components, wood, cloth;
         public float wealth, wealthTrend;
+        public Site.Info site;
+        public bool caveBase, hollowBase, poorColony;
 
         // угроза
         public bool threat;
@@ -87,6 +89,10 @@ namespace RimWorldBot.TradeEmpire
 
             w.ReadPeople();
             w.ReadResources();
+            w.site = Site.Best(map);
+            w.caveBase = w.site != null && w.site.cave;
+            w.hollowBase = w.site != null && w.site.hollow;
+            w.poorColony = w.site != null && w.site.poor;
             w.ReadThreat();
             w.ReadEconomy();
             w.ReadContext();

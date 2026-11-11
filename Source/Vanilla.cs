@@ -50,6 +50,9 @@ namespace RimWorldBot.TradeEmpire
             FoodSafety.ResetRuntime();
             Deterioration.ResetRuntime();
             Mechanics.ResetRuntime();
+            Roofs.ResetRuntime();
+            Zones.ResetRuntime();
+            Patterns.ResetRuntime();
             lastThought = 0;
             announced = false;
         }
@@ -126,6 +129,9 @@ namespace RimWorldBot.TradeEmpire
             T.Safe("FoodSafety", () => FoodSafety.Run(map, tick));
             T.Safe("Deterioration", () => Deterioration.Run(map, tick));
             T.Safe("Mechanics", () => Mechanics.Run(map, tick));
+            T.Safe("Roofs", () => Roofs.Run(map, tick));
+            T.Safe("Zones", () => Zones.Run(map, tick));
+            T.Safe("Patterns", () => Patterns.Run(map, tick));
         }
 
         // ============================== оборона ==============================
