@@ -113,7 +113,6 @@ namespace RimWorldBot.TradeEmpire
                 if (roofed)
                 {
                     z.settings.Priority = StoragePriority.Critical;
-                    z.settings.filter.SetAllow(ThingCategoryDefOf.Foods, false);
                     return z;
                 }
             }
@@ -139,7 +138,6 @@ namespace RimWorldBot.TradeEmpire
             for (int i = 0; i < cells.Count; i++) zone.AddCell(cells[i]);
             zone.label = "Вещи (бот)";
             zone.settings.Priority = StoragePriority.Critical;
-            zone.settings.filter.SetAllow(ThingCategoryDefOf.Foods, false);
             Mind.Think("хранение", "Создал крытый склад для вещей на " + cells.Count
                 + " клеток (приоритет Critical): снаряжение и товары не будут ветшать под дождём.");
             return zone;
