@@ -108,13 +108,16 @@ namespace RimWorldBot.TradeEmpire
             int added = 0;
             added += ManageExisting(map, r, target, emergency);
 
-            int need = target - r.cells - added;
+            // Плохие грядки не считаются выполненной целью: лучше заложить новое поле,
+            // чем бесконечно расширять гравий у самой карты.
+            int effective = EffectiveCells(map, r);
+            int need = target - effective - added;
             if (need <= 0) return added;
 
             // Сначала расширяем лучшую существующую грядку: меньше зон, короче дорога к складу.
             int expand = ExpandExisting(map, r, need);
             added += expand;
-            need = target - r.cells - added;
+            need = target - effective - added;
             if (need <= 0) return added;
 
             if (r.toxic && !HasHydro(map)) return added;
@@ -178,7 +181,9 @@ namespace RimWorldBot.TradeEmpire
             foreach (FieldInfo f in r.fields.OrderByDescending(x => x.avgFertility).ThenBy(x => x.cells))
             {
                 if (f.zone == null || need <= 0) continue;
+                if (!f.hydro && f.avgFertility < 0.78f) continue;   // бедную грядку не расширяем
                 IntVec3 center = ZoneCenter(f.zone);
+                if (center == IntVec3.Invalid || center.DistanceTo(Infrastructure.Anchor(map)) > 42f) continue;
                 List<IntVec3> cells = new List<IntVec3>();
                 foreach (IntVec3 c in GenRadial.RadialCellsAround(center, 5f, true))
                 {
@@ -199,6 +204,14 @@ namespace RimWorldBot.TradeEmpire
                 break;
             }
             return added;
+        }
+
+        private static int EffectiveCells(Map map, Report r)
+        {
+            int n = 0;
+            foreach (FieldInfo f in r.fields)
+                if (f.hydro || f.avgFertility >= 0.78f) n += f.cells;
+            return n;
         }
 
         private static int CreateZone(Map map, Cluster c, Report r)

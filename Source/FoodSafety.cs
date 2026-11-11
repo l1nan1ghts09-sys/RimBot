@@ -188,14 +188,19 @@ namespace RimWorldBot.TradeEmpire
             return list;
         }
 
+        /// <summary>Публичная проверка: еда людей, а не сено/киббл для животных.</summary>
+        public static bool IsHumanFood(ThingDef d) { return HumanFood(d); }
+
         /// <summary>Еда, которую реально едят люди, а не сено/киббл для животных.</summary>
         private static bool HumanFood(ThingDef d)
         {
             if (d == null || d.ingestible == null || d.IsDrug || d.IsCorpse) return false;
             FoodTypeFlags ft = d.ingestible.foodType;
             if ((ft & FoodTypeFlags.Kibble) != 0) return false;
-            if ((ft & FoodTypeFlags.Plant) != 0 && (ft & FoodTypeFlags.Meal) == 0) return false;
             if ((ft & FoodTypeFlags.Tree) != 0) return false;
+            // Сырые овощи и фрукты — тоже еда людей; сено и силос — только корм животных.
+            string n = d.defName != null ? d.defName.ToLowerInvariant() : "";
+            if (n.Contains("hay") || n.Contains("silage")) return false;
             return true;
         }
 

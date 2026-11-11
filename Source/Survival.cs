@@ -361,8 +361,11 @@ namespace RimWorldBot.TradeEmpire
             if (d == null || d.ingestible == null || d.IsDrug || d.IsCorpse) return false;
             FoodTypeFlags ft = d.ingestible.foodType;
             if ((ft & FoodTypeFlags.Kibble) != 0) return false;
-            if ((ft & FoodTypeFlags.Plant) != 0 && (ft & FoodTypeFlags.Meal) == 0) return false;
             if ((ft & FoodTypeFlags.Tree) != 0) return false;
+            // Сырые овощи люди тоже едят; сено и киббл — нет. Это важно для реального
+            // запаса дней: иначе бот паникует из-за «пустой» кладовой при полной грядке риса.
+            string n = d.defName != null ? d.defName.ToLowerInvariant() : "";
+            if (n.Contains("hay") || n.Contains("silage")) return false;
             return d.IsNutritionGivingIngestible && d.category == ThingCategory.Item;
         }
 

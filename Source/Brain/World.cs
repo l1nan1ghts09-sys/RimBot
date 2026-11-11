@@ -214,7 +214,8 @@ namespace RimWorldBot.TradeEmpire
                     float n;
                     if (nut.TryGetValue(t.def, out n))
                     {
-                        if (!t.IsForbidden(Faction.OfPlayer)) stored += Mathf.Max(0f, n) * t.stackCount;
+                        if (!t.IsForbidden(Faction.OfPlayer) && FoodSafety.IsHumanFood(t.def))
+                            stored += Mathf.Max(0f, n) * t.stackCount;
                         continue;
                     }
                     float potency;

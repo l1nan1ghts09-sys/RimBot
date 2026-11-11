@@ -34,7 +34,7 @@ namespace RimWorldBot.TradeEmpire
         {
             float nut = 0;
             foreach (ThingDef d in DefDatabase<ThingDef>.AllDefsListForReading)
-                if (d.IsNutritionGivingIngestible && !d.IsDrug && d.category == ThingCategory.Item)
+                if (FoodSafety.IsHumanFood(d))
                     nut += T.Count(map, d) * d.GetStatValueAbstract(StatDefOf.Nutrition);
             return nut / Math.Max(1f, colonists * 2.6f);
         }
