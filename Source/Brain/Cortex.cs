@@ -60,6 +60,8 @@ namespace RimWorldBot.TradeEmpire
             Planner.ResetRuntime();
             Watchdog.ResetRuntime();
             Survival.ResetRuntime();
+            Agriculture.ResetRuntime();
+            SurvivalTemplates.ResetRuntime();
             Vanilla.ResetRuntime();
             Roofs.ResetRuntime();
             Zones.ResetRuntime();
@@ -158,7 +160,9 @@ namespace RimWorldBot.TradeEmpire
             }
             if (world == null) return;
 
-            // Порча еды, ветшание вещей и ванильные механики — в обоих режимах.
+            // Порча еды, поля, шаблоны выживания, ветшание вещей и ванильные механики — в обоих режимах.
+            T.Safe("Agriculture", () => Agriculture.Run(map, tick));
+            T.Safe("SurvivalTemplates", () => SurvivalTemplates.Run(map, tick));
             T.Safe("FoodSafety", () => FoodSafety.Run(map, tick));
             T.Safe("Deterioration", () => Deterioration.Run(map, tick));
             T.Safe("Mechanics", () => Mechanics.Run(map, tick));

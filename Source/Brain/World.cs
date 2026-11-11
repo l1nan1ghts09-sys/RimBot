@@ -57,6 +57,9 @@ namespace RimWorldBot.TradeEmpire
         // хозяйство
         public float powerCapacity, powerDemand, powerStored;
         public int beds, tables, tablesWithoutBills, bills, blueprints, frames, growingZones, prisoners, turrets, traps;
+        public int farmCells, farmSow, farmRipe, farmBlighted;
+        public float farmFertility;
+        public bool winter, toxicFallout, coldSnap, heatWave, volcanicWinter, eclipse;
         public float outdoorTemp;
         public string weather = "—", biome = "—";
         public List<string> conditions = new List<string>();
@@ -388,11 +391,31 @@ namespace RimWorldBot.TradeEmpire
                 prisoners = map.mapPawns.PrisonersOfColonySpawned.Count();
                 conditions.Clear();
                 foreach (GameCondition gc in map.gameConditionManager.ActiveConditions)
-                    if (gc != null && gc.def != null) conditions.Add(gc.def.LabelCap.ToString());
+                {
+                    if (gc == null || gc.def == null) continue;
+                    conditions.Add(gc.def.LabelCap.ToString());
+                    string dn = (gc.def.defName ?? "").ToLowerInvariant();
+                    if (dn.Contains("toxic")) toxicFallout = true;
+                    if (dn.Contains("coldsnap")) coldSnap = true;
+                    if (dn.Contains("heatwave")) heatWave = true;
+                    if (dn.Contains("volcanic")) volcanicWinter = true;
+                    if (dn.Contains("eclipse")) eclipse = true;
+                }
             }
             catch { }
 
             try { outdoorTemp = map.mapTemperature.OutdoorTemp; } catch { outdoorTemp = 20f; }
+            try
+            {
+                Agriculture.Report farm = Agriculture.Analyze(map);
+                farmCells = farm.cells;
+                farmSow = farm.sow;
+                farmRipe = farm.ripe;
+                farmBlighted = farm.blighted;
+                farmFertility = farm.avgFertility;
+                winter = farm.winter;
+            }
+            catch (Exception e) { T.Warn("Обзор полей неполный: " + e.Message); }
             try
             {
                 object cur = R.Get(map.weatherManager, "curWeather");

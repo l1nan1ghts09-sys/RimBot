@@ -45,11 +45,13 @@ namespace RimWorldBot.TradeEmpire
             bool starving = cols.Any(p => p.needs != null && p.needs.food != null && p.needs.food.CurLevelPercentage < 0.15f);
             if (days >= 3f && !starving) return;
             if (!Ready("food", 2500)) return;
-            int n = Opening.DesignateWildFood(map, cols[0].Position, 14);
+            int n = Opening.DesignateWildFood(map, cols[0].Position, 24);
+            int fields = 0;
+            try { fields = Agriculture.EnsureFields(map, true); } catch { }
             BotSettingsAccess.Set("autoHunt", true);
             BotSettingsAccess.Set("autoCutPlants", true);
             Memory.Journal("КРИЗИС еды: запас на " + days.ToString("0.0") + " дн." + (starving ? ", есть голодающие" : "")
-                + ". Помечено диких растений: " + n + ", включена охота.");
+                + ". Помечено диких растений: " + n + ", грядки +" + fields + ", включена охота.");
         }
 
         private static void Exposure(Map map, List<Pawn> cols)

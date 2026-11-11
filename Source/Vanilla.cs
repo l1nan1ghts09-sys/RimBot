@@ -48,6 +48,8 @@ namespace RimWorldBot.TradeEmpire
             Site.ResetRuntime();
             Utility.ResetRuntime();
             FoodSafety.ResetRuntime();
+            Agriculture.ResetRuntime();
+            SurvivalTemplates.ResetRuntime();
             Deterioration.ResetRuntime();
             Mechanics.ResetRuntime();
             Roofs.ResetRuntime();
@@ -127,6 +129,8 @@ namespace RimWorldBot.TradeEmpire
             if (tick >= nextPrison) { nextPrison = tick + 6000; T.Safe("VanillaPrison", () => Prisoners(map)); }
             if (Focus.Allows("Storage")) T.Safe("Storage", () => Storage.Run(map, tick));
             if (Focus.Allows("Research")) T.Safe("Development", () => Development.Run(map, tick));
+            T.Safe("Agriculture", () => Agriculture.Run(map, tick));
+            T.Safe("SurvivalTemplates", () => SurvivalTemplates.Run(map, tick));
             T.Safe("FoodSafety", () => FoodSafety.Run(map, tick));
             T.Safe("Deterioration", () => Deterioration.Run(map, tick));
             T.Safe("Mechanics", () => Mechanics.Run(map, tick));
@@ -436,61 +440,10 @@ namespace RimWorldBot.TradeEmpire
 
         private static void Farm(Map map)
         {
-            try
-            {
-                int cells = 0;
-                foreach (Zone z in map.zoneManager.AllZones) { Zone_Growing g = z as Zone_Growing; if (g != null) cells += g.cells.Count; }
-                int want = 40 + map.mapPawns.FreeColonistsSpawnedCount * 10;
-                if (cells >= want) return;
-
-                IntVec3 anchor = Infrastructure.Anchor(map);
-                List<IntVec3> candidates = new List<IntVec3>();
-                foreach (IntVec3 c in GenRadial.RadialCellsAround(anchor, 28f, true))
-                    if (Soil.Suitable(map, c, Soil.MinFertility)) candidates.Add(c);
-
-                if (candidates.Count < 6)
-                {
-                    if (cells == 0) Mind.Think("еда", "Рядом с базой нет почвы с плодородием выше " + Soil.Percent(Soil.MinFertility)
-                        + " — грядку не закладываю, ищу еду охотой и сбором.");
-                    return;
-                }
-
-                // Сеем компактным участком вокруг самой плодородной клетки: так удобнее носить урожай.
-                IntVec3 seed = candidates
-                    .OrderByDescending(c => Soil.Fertility(map, c))
-                    .ThenBy(c => c.DistanceToSquared(anchor))
-                    .First();
-
-                List<IntVec3> pick = candidates
-                    .Where(c => c.DistanceTo(seed) <= 6f)
-                    .OrderByDescending(c => Soil.Fertility(map, c))
-                    .ThenBy(c => c.DistanceToSquared(seed))
-                    .Take(24)
-                    .ToList();
-
-                if (pick.Count < 6) pick = candidates.OrderByDescending(c => Soil.Fertility(map, c)).Take(24).ToList();
-                if (pick.Count < 6) return;
-
-                float avg = Soil.Average(map, pick);
-                if (avg < 0.8f)
-                {
-                    Mind.Think("еда", "Лучший участок рядом с базой даёт всего " + Soil.Percent(avg)
-                        + " плодородия — грядку не закладываю, чтобы не тратить работу впустую.");
-                    return;
-                }
-
-                Zone_Growing zone = new Zone_Growing(map.zoneManager);
-                map.zoneManager.RegisterZone(zone);
-                for (int i = 0; i < pick.Count; i++) zone.AddCell(pick[i]);
-                zone.allowSow = true;
-
-                ThingDef crop = Soil.BestCrop(map, avg);
-                if (crop != null) zone.SetPlantDefToGrow(crop);
-                Mind.Think("еда", "Создал грядку на " + pick.Count + " клеток, среднее плодородие " + Soil.Percent(avg)
-                    + " (" + Soil.Percent(Soil.Fertility(map, seed)) + " в лучшей клетке). Культура: "
-                    + (crop != null ? crop.label : "посевы") + ".");
-            }
-            catch (Exception e) { T.Warn("Посевы: " + e.Message); }
+            // Вся логика выбора участка, культуры и борьбы с блайтом — в Agriculture.
+            // Здесь оставлен только вызов, чтобы ванильный режим и основной бот
+            // принимали одинаковые решения.
+            Agriculture.Run(map, Find.TickManager != null ? Find.TickManager.TicksGame : 0);
         }
 
         private static void Bills(Map map)

@@ -397,11 +397,12 @@ namespace RimWorldBot.TradeEmpire
         {
             Policy.HoldFood = true;
             Crisis.Run(w.map);
-            int wild = 0;
+            int wild = 0, fields = 0;
             try
             {
                 Pawn anchor = w.colonists.FirstOrDefault();
-                if (anchor != null) wild = Opening.DesignateWildFood(w.map, anchor.Position, 20);
+                if (anchor != null) wild = Opening.DesignateWildFood(w.map, anchor.Position, 24);
+                fields = Agriculture.EnsureFields(w.map, true);
             }
             catch { }
             if (Vanilla.Active) Vanilla.Hunt(w.map);
@@ -409,7 +410,8 @@ namespace RimWorldBot.TradeEmpire
             BotBridge.SetBotSetting("autoCutPlants", true);
             BotBridge.SetBotSetting("autoGrowing", true);
             return SkillResult.Yes("Аварийная еда: запас " + U.F(w.foodDays) + " дн., голодают " + w.starving
-                + ". Помечено дикой еды " + wild + ", охота и рубка включены, продажа еды запрещена.", MetricKind.Food, 10000);
+                + ". Помечено дикой еды " + wild + ", грядки +" + fields
+                + ", охота и рубка включены, продажа еды запрещена.", MetricKind.Food, 10000);
         }
 
         private static SkillResult FoodSecurity(ColonyWorld w)
@@ -417,8 +419,12 @@ namespace RimWorldBot.TradeEmpire
             Policy.HoldFood = w.foodDays < 4f;
             BotBridge.SetBotSetting("autoGrowing", true);
             if (w.foodDays < w.foodTargetDays * 0.5f) BotBridge.SetBotSetting("autoHunt", true);
+            int fields = 0;
+            try { fields = Agriculture.EnsureFields(w.map, false); } catch { }
             string msg = "Продовольствие: " + U.F(w.foodDays) + "/" + U.F(w.foodTargetDays) + " дн., с урожаем "
-                + U.F(w.foodDaysWithCrops) + ", тренд " + U.Sign(w.foodTrend) + "/дн. Грядки и готовка в приоритете.";
+                + U.F(w.foodDaysWithCrops) + ", тренд " + U.Sign(w.foodTrend) + "/дн., грядки " + w.farmCells + "/"
+                + Agriculture.Last.target + " кл. (блайт " + w.farmBlighted + ", добавил " + fields
+                + "). Грядки и готовка в приоритете.";
             if (w.foodTrend < -0.2f) msg += " Запас падает — расширяю посевы и запрещаю продажу еды.";
             return SkillResult.Yes(msg, MetricKind.Food, 30000);
         }

@@ -66,6 +66,8 @@ namespace RimWorldBot.TradeEmpire
         public bool autoRoofs = true;          // снимать крышу над солнечными панелями/грядками
         public bool autoZoneCleanup = true;    // убирать пустые и дублирующиеся зоны
         public bool autoPatterns = true;       // пещерная база, пожарная безопасность и т.п.
+        public bool autoFields = true;         // умный выбор участка под грядки, культура и блайт
+        public bool autoSurvival = true;       // шаблоны выживания: голод, холод, жара, осадки и т.п.
 
         public override void ExposeData()
         {
@@ -123,6 +125,8 @@ namespace RimWorldBot.TradeEmpire
             Scribe_Values.Look(ref autoRoofs, "autoRoofs", true);
             Scribe_Values.Look(ref autoZoneCleanup, "autoZoneCleanup", true);
             Scribe_Values.Look(ref autoPatterns, "autoPatterns", true);
+            Scribe_Values.Look(ref autoFields, "autoFields", true);
+            Scribe_Values.Look(ref autoSurvival, "autoSurvival", true);
             base.ExposeData();
         }
     }
@@ -223,6 +227,8 @@ namespace RimWorldBot.TradeEmpire
             l.CheckboxLabeled("Снимать крышу над панелями и грядками", ref S.autoRoofs);
             l.CheckboxLabeled("Убирать пустые и дублирующиеся зоны", ref S.autoZoneCleanup);
             l.CheckboxLabeled("Умные паттерны: пещера, двери, пожарная защита", ref S.autoPatterns);
+            l.CheckboxLabeled("Умный выбор грядок: плодородие, дорога, компактность, культура", ref S.autoFields);
+            l.CheckboxLabeled("Шаблоны выживания: голод, зима, холод, жара, осадки, блайт", ref S.autoSurvival);
             l.GapLine();
             l.Label(Ledger.Summary());
             l.End();

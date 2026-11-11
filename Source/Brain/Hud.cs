@@ -215,6 +215,8 @@ namespace RimWorldBot.TradeEmpire
 
             Head(v, ref y, "Хранение, порча и механики");
             y += Label(v, y, FoodSafety.Line(w.map), 0);
+            y += Label(v, y, Agriculture.Line(w.map), 0);
+            y += Label(v, y, SurvivalTemplates.Line(w.map), 0);
             y += Label(v, y, Deterioration.Line(w.map), 0);
             y += Label(v, y, Storage.StatusLine(w.map), 0);
             y += Label(v, y, Mechanics.Line(w.map), 0);
