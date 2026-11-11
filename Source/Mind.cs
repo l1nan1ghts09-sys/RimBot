@@ -106,7 +106,7 @@ namespace RimWorldBot.TradeEmpire
             Event e = Event.current;
             if (e != null && e.type == EventType.KeyDown && e.control && e.keyCode == KeyCode.T) { Toggle(); e.Use(); }
 
-            if (s.showHud && Find.CurrentMap != null && !WorldRendererUtility.WorldRenderedNow && Find.WindowStack.WindowOfType<BrainWindow>() == null)
+            if (s.showHud && Find.CurrentMap != null && Find.WindowStack.WindowOfType<BrainWindow>() == null)
             {
                 if (Widgets.ButtonText(new Rect(UI.screenWidth - 150f, UI.screenHeight - 180f, 140f, 28f), "Мозг бота"))
                     Toggle();

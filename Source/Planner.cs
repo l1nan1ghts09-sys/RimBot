@@ -104,7 +104,7 @@ namespace RimWorldBot.TradeEmpire
             float revenue = unit * qualityMul * outCount;
             float profit = revenue - ingValue;
             if (profit <= 0f) return null;
-            float work = Math.Max(1f, r.WorkAmountTotal(stuff));
+            float work = Math.Max(1f, r.workAmount > 0f ? r.workAmount : 100f);
             // спрос из фактических продаж: то, что реально покупают, выгоднее производить
             float demand = Ledger.Demand(p.defName);
             float demandMul = 1f + Mathf.Clamp01(demand / 30f) * 0.8f;

@@ -36,7 +36,7 @@ namespace RimWorldBot.TradeEmpire
                 DiaOption pick = null;
                 foreach (DiaOption o in cl.Choices)
                 {
-                    string t = (o.text ?? "").ToLowerInvariant();
+                    string t = ((R.Get(o, "text") as string) ?? "").ToLowerInvariant();
                     bool isAccept = t.Contains("accept") || t.Contains("прин") || t.Contains("join") || t.Contains("прис");
                     bool isReject = t.Contains("reject") || t.Contains("отк") || t.Contains("отклон");
                     if (accept && isAccept) { pick = o; break; }

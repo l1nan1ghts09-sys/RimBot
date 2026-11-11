@@ -275,10 +275,10 @@ namespace RimWorldBot.TradeEmpire
         {
             if (string.IsNullOrEmpty(defName)) return 0f;
             float learned = Knowledge.DemandScore(defName);
-            float current = 0f;
+            int sold = 0;
             var c = C;
-            if (c != null && c.soldByDef != null && c.soldByDef.TryGetValue(defName, out current)) current = Mathf.Min(current, 200);
-            return Mathf.Max(learned, current * 0.25f);
+            if (c != null && c.soldByDef != null && c.soldByDef.TryGetValue(defName, out sold)) sold = Mathf.Min(sold, 200);
+            return Mathf.Max(learned, sold * 0.25f);
         }
     }
 }

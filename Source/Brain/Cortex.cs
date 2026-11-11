@@ -71,7 +71,7 @@ namespace RimWorldBot.TradeEmpire
 
         public static BrainComponent Get()
         {
-            try { return Current.Game != null ? Current.Game.GetComponent<BrainComponent>() : null; }
+            try { return Verse.Current.Game != null ? Verse.Current.Game.GetComponent<BrainComponent>() : null; }
             catch { return null; }
         }
 

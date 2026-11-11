@@ -119,12 +119,7 @@ namespace RimWorldBot.TradeEmpire
             foreach (Line b in chosenBuys) Force(b.tr, -sellSign * b.count);
             deal.UpdateCurrencyCount();
 
-            if (!deal.DoesPlayerHaveEnoughSilver() || !deal.DoesTraderHaveEnoughSilver())
-            {
-                T.Warn("Сделка не сходится по серебру, сбрасываю.");
-                deal.Reset();
-                return false;
-            }
+            // Проверку серебра оставляем TryExecute: в 1.6 у TradeDeal больше нет публичных Does*EnoughSilver.
             bool traded;
             bool ok = deal.TryExecute(out traded);
             if (ok && traded)

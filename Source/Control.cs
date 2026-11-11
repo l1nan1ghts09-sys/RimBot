@@ -30,7 +30,7 @@ namespace RimWorldBot.TradeEmpire
         // ---------- диалоги ----------
         private static int Score(DiaOption o)
         {
-            string t = (o.text ?? "").ToLowerInvariant();
+            string t = ((R.Get(o, "text") as string) ?? "").ToLowerInvariant();
             int sc = 0;
             if (o.disabled) return -100;
             foreach (string w in Good) if (t.Contains(w)) sc += 3;
