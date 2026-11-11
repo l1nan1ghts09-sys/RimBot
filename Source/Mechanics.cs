@@ -103,6 +103,9 @@ namespace RimWorldBot.TradeEmpire
         {
             ThingDef def = T.Def(defName);
             if (def == null || !Infrastructure.Available(def) || Infrastructure.Exists(map, def)) return false;
+            string why;
+            ThingDef stuff = def.MadeFromStuff ? GenStuff.DefaultStuffFor(def) : null;
+            if (!Resources.CanAfford(map, def, stuff, 1, 0.8f, out why)) return false;
             if (!Utility.WeighOnly("climate_" + defName, "настроить температуру", 0.55f, 0.10f, 0.02f, 1f,
                 "температура станет подходящей для людей и запасов", "порча еды или переохлаждение продолжатся")) return false;
             if (!Infrastructure.PlaceNear(map, def, at, 2, 12, true)) return false;

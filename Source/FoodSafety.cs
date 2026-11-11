@@ -74,6 +74,13 @@ namespace RimWorldBot.TradeEmpire
 
             if (EnsurePreservation(map, r)) changed++;
             Storage.EnsureFood(map);
+            if (Storage.FoodZone(map) == null && (r.spoilPct > 0.05f || r.firstRotDays < 2f))
+            {
+                // Крытого места для еды нет — сначала помещение, потом холодный склад.
+                Mind.Think("еда", "Порча еды: " + r.line + " Крытого склада нет — запускаю постройку помещения.");
+                Vanilla.Shelter(map);
+                changed++;
+            }
             if (changed > 0)
                 Mind.Think("еда", "Порча еды: " + r.line + " Дал доступ к еде и/или поставил заготовку долгого хранения.");
         }
