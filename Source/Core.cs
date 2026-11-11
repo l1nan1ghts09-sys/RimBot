@@ -38,6 +38,7 @@ namespace RimWorldBot.TradeEmpire
         public bool economyLearning = true;   // учиться на фактических сделках
         public float riskTolerance = 0.35f;   // 0 — осторожно, 1 — рискованно
         public int calmSpeed = 3;             // скорость в спокойствии: 1 обычная, 2 быстрая, 3 сверхбыстрая
+        public bool fastSpeed = true;         // всегда сверхбыстрая в спокойствии, даже если ползунок старый
         public int runInterval = 600;         // тиков между проходами
         public int silverReserve = 400;       // не тратить ниже
         public int minDealValue = 200;        // минимальная сумма продаж для сделки
@@ -76,6 +77,7 @@ namespace RimWorldBot.TradeEmpire
             Scribe_Values.Look(ref quests, "quests", true);
             Scribe_Values.Look(ref autoSpeed, "autoSpeed", true);
             Scribe_Values.Look(ref calmSpeed, "calmSpeed", 3);
+            Scribe_Values.Look(ref fastSpeed, "fastSpeed", true);
             Scribe_Values.Look(ref takeover, "takeover", true);
             Scribe_Values.Look(ref watchdog, "watchdog", true);
             Scribe_Values.Look(ref vanillaAuto, "vanillaAuto", true);
@@ -148,6 +150,7 @@ namespace RimWorldBot.TradeEmpire
             l.CheckboxLabeled("Авто-выбор в диалогах событий и чистка писем", ref S.autoControl);
             l.CheckboxLabeled("Принимать безопасные квесты", ref S.quests);
             l.CheckboxLabeled("Бот управляет скоростью времени", ref S.autoSpeed);
+            l.CheckboxLabeled("Всегда сверхбыстрая в спокойствии", ref S.fastSpeed);
             l.CheckboxLabeled("Умная энергетика и приоритеты работ", ref S.takeover);
             l.CheckboxLabeled("Разрыв зацикливаний (сторож)", ref S.watchdog);
             l.CheckboxLabeled("Автономный режим: оборона, охота, посевы, добыча", ref S.vanillaAuto);

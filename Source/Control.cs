@@ -103,7 +103,7 @@ namespace RimWorldBot.TradeEmpire
             else
             {
                 bool allAsleep = cols.Count > 0 && cols.All(p => p.jobs != null && p.jobs.curDriver != null && p.jobs.curDriver.asleep);
-                int level = Mathf.Clamp(s.calmSpeed, 1, 3);
+                int level = s.fastSpeed ? 3 : Mathf.Clamp(s.calmSpeed, 1, 3);
                 if (allAsleep) level = 3;
                 target = level == 1 ? TimeSpeed.Normal : level == 2 ? TimeSpeed.Fast : TimeSpeed.Superfast;
             }

@@ -94,7 +94,7 @@ namespace RimWorldBot.TradeEmpire
                 if (pausedSince < 0) pausedSince = Time.realtimeSinceStartup;
                 else if (Time.realtimeSinceStartup - pausedSince > 2f)
                 {
-                    Find.TickManager.CurTimeSpeed = s.calmSpeed >= 3 ? TimeSpeed.Superfast : TimeSpeed.Fast;
+                    Find.TickManager.CurTimeSpeed = s.fastSpeed || s.calmSpeed >= 3 ? TimeSpeed.Superfast : TimeSpeed.Fast;
                     pausedSince = -1f;
                     Think("пауза", "Игра стояла на паузе — продолжаю на высокой скорости (можно отключить в настройках).");
                 }
