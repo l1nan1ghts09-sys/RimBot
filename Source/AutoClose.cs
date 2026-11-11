@@ -80,6 +80,7 @@ namespace RimWorldBot.TradeEmpire
             foreach (Window w in seen.Keys.Where(k => !alive.Contains(k)).ToList()) seen.Remove(w);
 
             Window closing = null;
+            int closedNow = 0;
             foreach (Window w in windows)
             {
                 if (w == null) continue;
@@ -108,7 +109,7 @@ namespace RimWorldBot.TradeEmpire
                 {
                     T.Warn("Не удалось закрыть окно " + n + ": " + e.Message);
                 }
-                break; // одно окно за проход: верхнее закрываем, остальные — следующим
+                if (++closedNow >= 4) break; // не растягиваем уборку на десятки секунд
             }
 
             if (closing != null)
@@ -201,9 +202,7 @@ namespace RimWorldBot.TradeEmpire
                 else
                 {
                     // Запасной путь для версий, где Clear нет: чистим liveMessages напрямую.
-                    FieldInfo live = messages.GetField("liveMessages",
-                        BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
-                    IList list = live?.GetValue(null) as IList;
+                    IList list = LiveMessages(messages);
                     list?.Clear();
                 }
 
@@ -227,12 +226,31 @@ namespace RimWorldBot.TradeEmpire
         {
             try
             {
-                FieldInfo live = messages.GetField("liveMessages",
-                    BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
-                IList list = live?.GetValue(null) as IList;
+                IList list = LiveMessages(messages);
                 return list != null ? list.Count : 0;
             }
             catch { return 0; }
+        }
+
+        private static IList LiveMessages(Type messages)
+        {
+            FieldInfo live = messages.GetField("liveMessages",
+                BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
+            if (live != null)
+            {
+                IList direct = live.GetValue(null) as IList;
+                if (direct != null) return direct;
+            }
+            // В некоторых сборках поле называется иначе: ищем статический список Message.
+            foreach (FieldInfo f in messages.GetFields(BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public))
+            {
+                if (!f.FieldType.IsGenericType) continue;
+                Type[] args = f.FieldType.GetGenericArguments();
+                if (args.Length != 1 || args[0] != typeof(Message)) continue;
+                IList list = f.GetValue(null) as IList;
+                if (list != null) return list;
+            }
+            return null;
         }
     }
 }
