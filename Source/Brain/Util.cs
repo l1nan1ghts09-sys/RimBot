@@ -95,12 +95,33 @@ namespace RimWorldBot.TradeEmpire
             {
                 Type t = target.GetType();
                 FieldInfo f = t.GetField(member, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                if (f != null) { f.SetValue(target, Convert.ChangeType(value, f.FieldType, CultureInfo.InvariantCulture)); return true; }
+                if (f != null)
+                {
+                    object v = Coerce(value, f.FieldType);
+                    if (v == null && value != null) return false;
+                    f.SetValue(target, v);
+                    return true;
+                }
                 PropertyInfo p = t.GetProperty(member, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                if (p != null && p.CanWrite) { p.SetValue(target, Convert.ChangeType(value, p.PropertyType, CultureInfo.InvariantCulture), null); return true; }
+                if (p != null && p.CanWrite)
+                {
+                    object v = Coerce(value, p.PropertyType);
+                    if (v == null && value != null) return false;
+                    p.SetValue(target, v, null);
+                    return true;
+                }
             }
             catch { }
             return false;
+        }
+
+        /// <summary>Приводит значение к типу поля: ссылочные типы (дефы, объекты) — как есть, числа — Convert.</summary>
+        private static object Coerce(object value, Type type)
+        {
+            if (value == null) return null;
+            if (type.IsInstanceOfType(value)) return value;
+            try { return Convert.ChangeType(value, type, CultureInfo.InvariantCulture); }
+            catch { return null; }
         }
 
         public static object Call(object target, string method, params object[] args)
