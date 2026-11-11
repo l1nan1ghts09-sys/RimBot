@@ -110,8 +110,8 @@ namespace RimWorldBot.TradeEmpire
 
             // Плохие грядки не считаются выполненной целью: лучше заложить новое поле,
             // чем бесконечно расширять гравий у самой карты.
-            bool hydro = HasHydro(map);
-            bool canOpen = !(r.toxic && !hydro) && !(r.winter && SafeTemp(map) < 1f && !hydro);
+            bool badWeather = r.toxic || (r.winter && SafeTemp(map) < 1f);
+            bool canOpen = !badWeather || HasIndoorFarm(map);
 
             int effective = EffectiveCells(map, r);
             int need = target - effective - added;
@@ -119,12 +119,12 @@ namespace RimWorldBot.TradeEmpire
             if (!canOpen) return added;
 
             // Сначала расширяем лучшую существующую грядку: меньше зон, короче дорога к складу.
-            int expand = ExpandExisting(map, r, need);
+            int expand = ExpandExisting(map, r, need, badWeather);
             added += expand;
             need = target - effective - added;
             if (need <= 0) return added;
 
-            Cluster best = BestCluster(map, Mathf.Clamp(need, 8, 40), emergency);
+            Cluster best = BestCluster(map, Mathf.Clamp(need, 8, 40), emergency, badWeather);
             if (best == null || best.cells.Count < 6)
             {
                 if (r.cells == 0)
@@ -176,12 +176,13 @@ namespace RimWorldBot.TradeEmpire
             return ChooseCrop(map, f.avgFertility, f.hydro, r.foodDays, r.winter, r.toxic, f.blighted, out why);
         }
 
-        private static int ExpandExisting(Map map, Report r, int need)
+        private static int ExpandExisting(Map map, Report r, int need, bool indoorOnly)
         {
             int added = 0;
             foreach (FieldInfo f in r.fields.OrderByDescending(x => x.avgFertility).ThenBy(x => x.cells))
             {
                 if (f.zone == null || need <= 0) continue;
+                if (indoorOnly && !f.roofed) continue;            // в осадки/мороз открытое поле не расширяем
                 if (!f.hydro && f.avgFertility < 0.78f) continue;   // бедную грядку не расширяем
                 IntVec3 center = ZoneCenter(f.zone);
                 if (center == IntVec3.Invalid || center.DistanceTo(Infrastructure.Anchor(map)) > 42f) continue;
@@ -190,6 +191,7 @@ namespace RimWorldBot.TradeEmpire
                 {
                     if (cells.Count >= need) break;
                     if (map.zoneManager.ZoneAt(c) != null) continue;
+                    if (indoorOnly && !c.Roofed(map)) continue;
                     if (!SuitableForFarm(map, c, Soil.MinFertility)) continue;
                     cells.Add(c);
                 }
@@ -205,6 +207,31 @@ namespace RimWorldBot.TradeEmpire
                 break;
             }
             return added;
+        }
+
+        /// <summary>Есть ли уже крытое место, где растёт или может расти еда (гидропоника/теплица).</summary>
+        private static bool HasIndoorFarm(Map map)
+        {
+            if (map == null) return false;
+            try
+            {
+                foreach (Zone z in map.zoneManager.AllZones)
+                {
+                    Zone_Growing g = z as Zone_Growing;
+                    if (g == null) continue;
+                    foreach (IntVec3 c in g.cells)
+                        if (c.Roofed(map) && (IsHydroponic(map, c) || HasSunLamp(map, c))) return true;
+                }
+                IntVec3 anchor = Infrastructure.Anchor(map);
+                foreach (IntVec3 c in GenRadial.RadialCellsAround(anchor, 24f, true))
+                {
+                    if (!c.InBounds(map) || c.Fogged(map) || !c.Roofed(map)) continue;
+                    if (Soil.Fertility(map, c) < 0.70f) continue;
+                    if (HasSunLamp(map, c)) return true;
+                }
+            }
+            catch { }
+            return false;
         }
 
         private static int EffectiveCells(Map map, Report r)
@@ -423,7 +450,7 @@ namespace RimWorldBot.TradeEmpire
 
         // ============================== выбор участка ==============================
 
-        private static Cluster BestCluster(Map map, int want, bool emergency)
+        private static Cluster BestCluster(Map map, int want, bool emergency, bool indoorOnly)
         {
             if (map == null) return null;
             IntVec3 anchor = Infrastructure.Anchor(map);
@@ -434,6 +461,7 @@ namespace RimWorldBot.TradeEmpire
             foreach (IntVec3 c in GenRadial.RadialCellsAround(anchor, radius, true))
             {
                 if (!SuitableForFarm(map, c, Soil.MinFertility)) continue;
+                if (indoorOnly && !c.Roofed(map)) continue;
                 if (NearEdge(map, c, 5)) continue;
                 if (NearHostile(c, hostiles, 10f)) continue;
                 cells.Add(c);
