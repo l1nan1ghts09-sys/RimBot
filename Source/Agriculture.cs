@@ -64,6 +64,7 @@ namespace RimWorldBot.TradeEmpire
         public static void Run(Map map, int tick)
         {
             if (map == null) return;
+            if (map.mapPawns.FreeColonistsSpawnedCount == 0) return;   // колонии нет — поля не нужны
             TradeSettings s = TradeEmpireMod.S;
             if (s != null && !s.autoFields) { line = "Посевы: выключены в настройках."; return; }
             if (tick <= 0) tick = Find.TickManager != null ? Find.TickManager.TicksGame : 0;

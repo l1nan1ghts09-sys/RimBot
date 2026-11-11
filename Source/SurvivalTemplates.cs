@@ -63,6 +63,7 @@ namespace RimWorldBot.TradeEmpire
         public static void Run(Map map, int tick)
         {
             if (map == null) return;
+            if (map.mapPawns.FreeColonistsSpawnedCount == 0) return;   // нечего выживать
             TradeSettings s = TradeEmpireMod.S;
             if (s != null && !s.autoSurvival) { last.line = "Выживание: шаблоны выключены в настройках."; return; }
             if (tick <= 0) tick = Find.TickManager != null ? Find.TickManager.TicksGame : 0;
