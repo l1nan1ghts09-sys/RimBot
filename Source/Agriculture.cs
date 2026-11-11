@@ -110,18 +110,19 @@ namespace RimWorldBot.TradeEmpire
 
             // Плохие грядки не считаются выполненной целью: лучше заложить новое поле,
             // чем бесконечно расширять гравий у самой карты.
+            bool hydro = HasHydro(map);
+            bool canOpen = !(r.toxic && !hydro) && !(r.winter && SafeTemp(map) < 1f && !hydro);
+
             int effective = EffectiveCells(map, r);
             int need = target - effective - added;
             if (need <= 0) return added;
+            if (!canOpen) return added;
 
             // Сначала расширяем лучшую существующую грядку: меньше зон, короче дорога к складу.
             int expand = ExpandExisting(map, r, need);
             added += expand;
             need = target - effective - added;
             if (need <= 0) return added;
-
-            if (r.toxic && !HasHydro(map)) return added;
-            if (r.winter && map.mapTemperature.OutdoorTemp < 1f && !HasHydro(map)) return added;
 
             Cluster best = BestCluster(map, Mathf.Clamp(need, 8, 40), emergency);
             if (best == null || best.cells.Count < 6)
@@ -520,7 +521,16 @@ namespace RimWorldBot.TradeEmpire
                 return true;
             }
 
-            if (c.Roofed(map)) return false;
+            if (c.Roofed(map))
+            {
+                // Теплица: крыша есть, но под ней горит солнечная лампа — растение получает свет.
+                if (!HasSunLamp(map, c)) return false;
+                if (Soil.Fertility(map, c) < minFertility) return false;
+                if (c.GetEdifice(map) != null) return false;
+                foreach (Thing t in map.thingGrid.ThingsAt(c))
+                    if (!t.def.CanOverlapZones) return false;
+                return true;
+            }
             if (Soil.Fertility(map, c) < minFertility) return false;
             if (c.GetEdifice(map) != null) return false;
             foreach (Thing t in map.thingGrid.ThingsAt(c))
@@ -715,7 +725,7 @@ namespace RimWorldBot.TradeEmpire
             return false;
         }
 
-        private static bool HasSunLamp(Map map, IntVec3 c)
+        public static bool HasSunLamp(Map map, IntVec3 c)
         {
             try
             {

@@ -49,6 +49,7 @@ namespace RimWorldBot.TradeEmpire
                         TerrainDef t = c.GetTerrain(map);
                         if (t != null && t.defName != null
                             && t.defName.IndexOf("Hydroponic", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                        if (Agriculture.HasSunLamp(map, c)) continue;   // теплица под лампой, крышу не снимаем
                         if (RemovableRoof(map, c)) return true;
                     }
                 }
@@ -83,6 +84,7 @@ namespace RimWorldBot.TradeEmpire
                         TerrainDef t = c.GetTerrain(map);
                         if (t != null && t.defName != null
                             && t.defName.IndexOf("Hydroponic", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                        if (Agriculture.HasSunLamp(map, c)) continue;   // теплица, крыша нужна
                         if (MarkNoRoof(map, c)) marked++;
                     }
                 }

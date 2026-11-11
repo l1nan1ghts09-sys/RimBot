@@ -138,6 +138,15 @@ namespace RimWorldBot.TradeEmpire
             if (days < 3f) return 1.6f;
             if (days < 7f) return 1.1f;
             if (days < 12f) return 0.7f;
+            try
+            {
+                BrainComponent b = BrainComponent.Get();
+                if (b != null && b.World != null && b.World.farmBlighted > 0 && days < 20f)
+                    return Mathf.Max(0.9f, 1.15f - days * 0.01f);   // блайт: поля важнее других задач
+                if (b != null && b.World != null && b.World.winter && days < 20f)
+                    return Mathf.Max(0.65f, 1.0f - days * 0.01f);
+            }
+            catch { }
             return 0.25f;
         }
 

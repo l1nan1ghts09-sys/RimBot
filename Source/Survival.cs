@@ -242,6 +242,7 @@ namespace RimWorldBot.TradeEmpire
 
             float growUrg = farmCells == 0 ? 0.55f : ripeCells > 0 ? 1.0f : sowCells > 0 ? (foodDays < 10f ? 1.0f : 0.85f) : 0.45f;
             if (blighted > 0) growUrg = 1.0f;
+            if (farmCells == 0 && farmTarget > 0) growUrg = Mathf.Max(growUrg, 0.8f);
             if (farmCells == 0 && foodDays < 8f) growUrg = Mathf.Max(growUrg, 0.85f);
             if (farmTarget > 0 && farmCells < farmTarget && foodDays < 12f) growUrg = Mathf.Max(growUrg, 0.9f);
 

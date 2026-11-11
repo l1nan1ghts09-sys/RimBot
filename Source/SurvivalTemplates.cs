@@ -326,6 +326,7 @@ namespace RimWorldBot.TradeEmpire
             int added = Agriculture.EnsureFields(c.map, true);
             int wild = c.anchor != null ? Opening.DesignateWildFood(c.map, c.anchor.Position, 30) : 0;
             if (c.anchor != null) Opening.DesignateTrees(c.map, c.anchor.Position, 12);
+            if (Vanilla.Active) Vanilla.Hunt(c.map);
             Crisis.Run(c.map);
             return "грядки +" + added + ", дикой еды " + wild + ", охота и рубка включены, продажа еды запрещена";
         }
@@ -362,8 +363,10 @@ namespace RimWorldBot.TradeEmpire
             Policy.HoldFood = true;
             Crisis.Run(c.map);
             Agriculture.EnsureFields(c.map, false);
+            bool greenhouse = TryGreenhouse(c.map);
             Housing.Build(c.map, false);
-            return "укрытие под крышей, только крытые поля, запас еды";
+            return "укрытие под крышей, только крытые поля, запас еды"
+                + (greenhouse ? ", заложил теплицу с лампой" : "");
         }
 
         private static string Winter(Context c)
@@ -373,9 +376,51 @@ namespace RimWorldBot.TradeEmpire
             int wood = 0;
             if (c.anchor != null) wood = Opening.DesignateTrees(c.map, c.anchor.Position, 20);
             Agriculture.EnsureFields(c.map, false);
+            bool greenhouse = TryGreenhouse(c.map);
             Policy.HoldFood = c.foodDays < c.targetDays;
             return (warm ? "обогрев" : "обогрев уже есть")
-                + (wood > 0 ? ", дерево +" + wood : "") + ", запас еды и быстрые культуры";
+                + (wood > 0 ? ", дерево +" + wood : "") + ", запас еды и быстрые культуры"
+                + (greenhouse ? ", теплица с лампой" : "");
+        }
+
+        /// <summary>
+        /// Теплица для зимы и токсичных осадков: солнечная лампа в крытом помещении
+        /// с плодородной почвой. Сами грядки Agriculture заложит под лампой.
+        /// </summary>
+        private static bool TryGreenhouse(Map map)
+        {
+            if (map == null) return false;
+            try
+            {
+                ThingDef lamp = T.Def("SunLamp");
+                if (lamp == null || !Infrastructure.Available(lamp) || Infrastructure.Exists(map, lamp)) return false;
+                IntVec3 anchor = Infrastructure.Anchor(map);
+                for (int r = 3; r <= 18; r++)
+                {
+                    foreach (IntVec3 c in GenRadial.RadialCellsAround(anchor, r, true))
+                    {
+                        if (!c.InBounds(map) || c.Fogged(map) || !c.Roofed(map)) continue;
+                        if (Soil.Fertility(map, c) < 0.80f) continue;
+                        if (c.GetEdifice(map) != null) continue;
+                        int soil = 0;
+                        foreach (IntVec3 n in GenRadial.RadialCellsAround(c, 5f, true))
+                        {
+                            if (!n.InBounds(map) || n.Fogged(map) || !n.Roofed(map)) continue;
+                            if (n.GetEdifice(map) != null) continue;
+                            if (Soil.Fertility(map, n) >= 0.70f) soil++;
+                        }
+                        if (soil < 12) continue;
+                        if (Infrastructure.PlaceNear(map, lamp, c, 1, 4, true))
+                        {
+                            Mind.Think("теплица", "Заложил солнечную лампу в крытом помещении: " + soil
+                                + " клеток почвы смогут расти зимой и при токсичных осадках.");
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch (Exception e) { T.Warn("Теплица: " + e.Message); }
+            return false;
         }
 
         private static bool EnsureWarm(Map map, Pawn anchor)
