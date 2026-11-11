@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>RimWorldBot — автопилот колонии</name>
+  <author>Arena.ai Agent Mode</author>
+  <supportedVersions>
+    <li>1.6</li>
+  </supportedVersions>
+  <packageId>arena.rimworldbot</packageId>
+  <description>Полноценный игровой ИИ-бот для RimWorld.
+
+Бот сам ведёт колонию на максимальной сложности: держит оборону, расставляет приоритеты работ, строит базу, ведёт сельское хозяйство, лечит людей, ставит производственные задания, исследует технологии, размечает добычу/охоту/рубку, управляет животными, применяет психические силы и способности, использует контент модов.
+
+Надстройка «Торговая империя + Мозг» (1.3.0): панель «Мысли бота» (Ctrl+T), гигиена, идеология, события, самообучение параметров бота между играми, антикризисные реакции (голод, холод, пожар), старт «Неприкрытая жестокость», дневник решений. Торговля: авто-торговля, производство по прибыльности, авто-строительство консоли связи/маяка/верстаков, торговые исследования, учёт оборота.
+
+Панель управления: кнопка «BOT» в правом нижнем углу или Ctrl+B.
+Настройки мода: Options -> Mod settings -> RimWorldBot.
+
+Совместим с Harmony. Все обращения к API обёрнуты в защитный слой, поэтому отсутствующий мод или изменённый деф не ломает игру — бот просто перестаёт использовать эту возможность и пишет предупреждение в лог.</description>
+  <modDependencies>
+    <li>
+      <packageId>brrainz.harmony</packageId>
+      <displayName>Harmony</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+      <downloadUrl>https://github.com/pardeike/HarmonyRimWorld/releases/latest</downloadUrl>
+    </li>
+  </modDependencies>
+  <loadAfter>
+    <li>brrainz.harmony</li>
+    <li>ludeon.rimworld</li>
+  </loadAfter>
+  <modIconPath>About/ModIcon.png</modIconPath>
+</ModMetaData>
