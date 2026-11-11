@@ -1,0 +1,26 @@
+name: build
+
+on:
+  push:
+    branches: [ "arena/f1bb1304-rimbot" ]
+    paths:
+      - "Source/**"
+      - "RimWorldBot.TradeEmpire.CI.csproj"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Build addon
+        run: dotnet build RimWorldBot.TradeEmpire.CI.csproj -c Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RimWorldBot.TradeEmpire
+          path: out/RimWorldBot.TradeEmpire.dll
+          if-no-files-found: error
