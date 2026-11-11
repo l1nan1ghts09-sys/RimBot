@@ -52,6 +52,7 @@ namespace RimWorldBot.TradeEmpire
                     foreach (RecipeDef r in table.def.AllRecipes)
                     {
                         if (!r.AvailableNow || r.products == null || r.products.Count == 0) continue;
+                        if (!CanDo(map, r)) continue;
                         ThingDef p = r.products[0].thingDef;
                         if (p == null) continue;
 
@@ -86,6 +87,7 @@ namespace RimWorldBot.TradeEmpire
                 foreach (RecipeDef r in table.def.AllRecipes)
                 {
                     if (!r.AvailableNow || r.products == null || r.products.Count == 0) continue;
+                    if (!CanDo(map, r)) continue;
                     ThingDef p = r.products[0].thingDef;
                     if (p == null || !p.IsRangedWeapon) continue;
                     float score = p.GetStatValueAbstract(StatDefOf.MarketValue);
@@ -124,6 +126,17 @@ namespace RimWorldBot.TradeEmpire
             if (def == null || !Infrastructure.Available(def) || Infrastructure.Exists(map, def)) return;
             if (Infrastructure.PlaceNear(map, def, Infrastructure.Anchor(map), 3, 24, false))
                 Mind.Think("крафт", "Построил верстак «" + def.label + "»: без него нужные предметы не сделать.");
+        }
+
+        private static bool CanDo(Map map, RecipeDef r)
+        {
+            foreach (Pawn p in map.mapPawns.FreeColonistsSpawned)
+            {
+                if (p == null || p.Dead || p.Downed || p.skills == null) continue;
+                if (r.requiredGiverWorkType != null && p.WorkTypeIsDisabled(r.requiredGiverWorkType)) continue;
+                if (r.PawnSatisfiesSkillRequirements(p)) return true;
+            }
+            return false;
         }
 
         private static bool IsMedicine(ThingDef d)
