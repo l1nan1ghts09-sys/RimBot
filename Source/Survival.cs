@@ -240,10 +240,10 @@ namespace RimWorldBot.TradeEmpire
             bool research = false;
             try { research = Find.ResearchManager != null && R.Get(Find.ResearchManager, "currentProj") != null; } catch { }
 
-            float grow = farmCells == 0 ? 0.55f : ripeCells > 0 ? 1.0f : sowCells > 0 ? (foodDays < 10f ? 1.0f : 0.85f) : 0.45f;
-            if (blighted > 0) grow = 1.0f;
-            if (farmCells == 0 && foodDays < 8f) grow = Mathf.Max(grow, 0.85f);
-            if (farmTarget > 0 && farmCells < farmTarget && foodDays < 12f) grow = Mathf.Max(grow, 0.9f);
+            float growUrg = farmCells == 0 ? 0.55f : ripeCells > 0 ? 1.0f : sowCells > 0 ? (foodDays < 10f ? 1.0f : 0.85f) : 0.45f;
+            if (blighted > 0) growUrg = 1.0f;
+            if (farmCells == 0 && foodDays < 8f) growUrg = Mathf.Max(growUrg, 0.85f);
+            if (farmTarget > 0 && farmCells < farmTarget && foodDays < 12f) growUrg = Mathf.Max(growUrg, 0.9f);
 
             float cook = foodDays < 4f ? 1.0f : foodDays < 10f ? 0.85f : 0.6f;
             if (meals < cols.Count * 2 && nut > 0f) cook = Mathf.Max(cook, 0.9f);
@@ -257,7 +257,7 @@ namespace RimWorldBot.TradeEmpire
             {
                 { "Doctor", injured > 0 ? 1.0f : 0.45f },
                 { "Cooking", cook },
-                { "Growing", grow },
+                { "Growing", growUrg },
                 { "PlantCutting", cut },
                 { "Hunting", foodDays < 4f ? 0.85f : cold && foodDays < 10f ? 0.5f : 0.1f },
                 { "Construction", construct },
