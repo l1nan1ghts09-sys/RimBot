@@ -49,6 +49,12 @@ namespace RimWorldBot.TradeEmpire
         private static Report cached;
         private static string line = "Посевы: оцениваю почву и участки.";
 
+        // Кэш ламп: проверка «есть ли свет» идёт для каждой клетки участка,
+        // поэтому список ламп собираем один раз на несколько секунд.
+        private static Map lampMap;
+        private static int lampTick = -99999;
+        private static readonly List<IntVec3> lamps = new List<IntVec3>();
+
         public static Report Last { get { return cached ?? new Report(); } }
         public static string Line(Map map) { return map == null ? line : (map == lastMap ? line : Analyze(map).line); }
 
@@ -58,6 +64,9 @@ namespace RimWorldBot.TradeEmpire
             lastMap = null;
             lastTick = -99999;
             cached = null;
+            lampMap = null;
+            lampTick = -99999;
+            lamps.Clear();
             line = "Посевы: оцениваю почву и участки.";
         }
 
@@ -756,17 +765,29 @@ namespace RimWorldBot.TradeEmpire
 
         public static bool HasSunLamp(Map map, IntVec3 c)
         {
+            if (map == null || !c.InBounds(map)) return false;
             try
             {
-                foreach (Building b in map.listerBuildings.allBuildingsColonist)
-                {
-                    if (b == null || b.def == null || b.def.defName == null) continue;
-                    if (b.def.defName.IndexOf("SunLamp", StringComparison.OrdinalIgnoreCase) < 0) continue;
-                    if (b.Position.InHorDistOf(c, 16f)) return true;
-                }
+                foreach (IntVec3 p in LampCells(map))
+                    if (p.DistanceTo(c) <= 16f) return true;
             }
             catch { }
             return false;
+        }
+
+        private static List<IntVec3> LampCells(Map map)
+        {
+            int now = Find.TickManager != null ? Find.TickManager.TicksGame : 0;
+            if (map == lampMap && Math.Abs(now - lampTick) < 600) return lamps;
+            lampMap = map;
+            lampTick = now;
+            lamps.Clear();
+            foreach (Building b in map.listerBuildings.allBuildingsColonist)
+            {
+                if (b == null || b.def == null || b.def.defName == null) continue;
+                if (b.def.defName.IndexOf("SunLamp", StringComparison.OrdinalIgnoreCase) >= 0) lamps.Add(b.Position);
+            }
+            return lamps;
         }
 
         private static bool IsBlighted(Plant p)
