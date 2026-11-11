@@ -47,6 +47,9 @@ namespace RimWorldBot.TradeEmpire
             Crafting.ResetRuntime();
             Site.ResetRuntime();
             Utility.ResetRuntime();
+            FoodSafety.ResetRuntime();
+            Deterioration.ResetRuntime();
+            Mechanics.ResetRuntime();
             lastThought = 0;
             announced = false;
         }
@@ -119,6 +122,9 @@ namespace RimWorldBot.TradeEmpire
             if (tick >= nextPrison) { nextPrison = tick + 6000; T.Safe("VanillaPrison", () => Prisoners(map)); }
             if (Focus.Allows("Storage")) T.Safe("Storage", () => Storage.Run(map, tick));
             if (Focus.Allows("Research")) T.Safe("Development", () => Development.Run(map, tick));
+            T.Safe("FoodSafety", () => FoodSafety.Run(map, tick));
+            T.Safe("Deterioration", () => Deterioration.Run(map, tick));
+            T.Safe("Mechanics", () => Mechanics.Run(map, tick));
         }
 
         // ============================== оборона ==============================
@@ -491,7 +497,12 @@ namespace RimWorldBot.TradeEmpire
                     string n = t.def.defName;
                     if (n == "TableButcher") EnsureBill(t, "ButcherCorpseFlesh", BillRepeatModeDefOf.RepeatCount, 10);
                     else if (n == "ElectricStove" || n == "FueledStove" || n == "Campfire")
-                        EnsureBill(t, pop >= 6 ? "CookMealFine" : "CookMealSimple", BillRepeatModeDefOf.TargetCount, pop * 4 + 6);
+                    {
+                        int meals = pop * 4 + 6;
+                        if (FoodSafety.Last != null && FoodSafety.Last.totalNutrition > 0f && FoodSafety.Last.spoilPct > 0.15f)
+                            meals = Math.Max(pop * 2, Math.Min(meals, pop * 3));
+                        EnsureBill(t, pop >= 6 ? "CookMealFine" : "CookMealSimple", BillRepeatModeDefOf.TargetCount, meals);
+                    }
                     else if (n == "TableStonecutter") EnsureBill(t, "MakeStoneBlocks", BillRepeatModeDefOf.TargetCount, 60);
                     else if (n == "TableMachining") EnsureBill(t, "Make_ComponentIndustrial", BillRepeatModeDefOf.TargetCount, 5);
                 }

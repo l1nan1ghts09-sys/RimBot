@@ -42,6 +42,8 @@ namespace RimWorldBot.TradeEmpire
 
         // еда и ресурсы
         public float foodNutrition, growingNutrition, foodDays, foodDaysWithCrops, foodTrend;
+        public float foodSafeDays, foodSpoilPct, foodSpoilNutrition, deteriorationValue;
+        public int outdoorDeteriorating;
         public int medicine, medicinePotency, silver, steel, components, wood, cloth;
         public float wealth, wealthTrend;
 
@@ -221,6 +223,17 @@ namespace RimWorldBot.TradeEmpire
 
             foodNutrition = stored;
             foodDays = stored / Mathf.Max(1f, pop * 2.6f);
+            try
+            {
+                FoodSafety.Report fs = FoodSafety.Analyze(map);
+                foodSafeDays = fs.safeDays;
+                foodSpoilPct = fs.spoilPct;
+                foodSpoilNutrition = fs.spoilNutrition;
+                Deterioration.Report ds = Deterioration.Analyze(map);
+                outdoorDeteriorating = ds.count;
+                deteriorationValue = ds.value;
+            }
+            catch (Exception e) { T.Warn("Прогноз порчи и ветшания: " + e.Message); }
 
             // будущий урожай: то, что уже растёт на грядках
             float growing = 0f;

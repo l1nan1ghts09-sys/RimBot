@@ -213,6 +213,13 @@ namespace RimWorldBot.TradeEmpire
             y += Label(v, y, BuildValue.Line(w.map), 0);
             y += 4f;
 
+            Head(v, ref y, "Хранение, порча и механики");
+            y += Label(v, y, FoodSafety.Line(w.map), 0);
+            y += Label(v, y, Deterioration.Line(w.map), 0);
+            y += Label(v, y, Storage.StatusLine(w.map), 0);
+            y += Label(v, y, Mechanics.Line(w.map), 0);
+            y += 4f;
+
             Head(v, ref y, "Оборона базы");
             y += Label(v, y, Defense.StatusDetail, 0);
             Defense.Report dr = Defense.Last;

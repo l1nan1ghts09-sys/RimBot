@@ -29,6 +29,7 @@ namespace RimWorldBot.TradeEmpire
                 "еда и вещи будут храниться правильно и меньше испортятся", "продукты сгниют, а склад забьётся")) return;
 
             T.Safe("StorageGeneral", () => EnsureGeneral(map));
+            T.Safe("StorageSheltered", () => EnsureSheltered(map));
             T.Safe("StorageFood", () => EnsureFood(map));
             T.Safe("StorageSpoil", () => Spoilage(map, tick));
         }
@@ -84,6 +85,48 @@ namespace RimWorldBot.TradeEmpire
             zone.settings.filter.SetDisallowAll();
             zone.settings.filter.SetAllow(ThingCategoryDefOf.Foods, true);
             Mind.Think("еда", "Создал продуктовый склад на " + cells.Count + " клеток под крышей (приоритет Critical): еда портится медленнее и всегда в одном месте.");
+        }
+
+        public static Zone_Stockpile FoodZone(Map map)
+        {
+            if (map == null) return null;
+            return Piles(map).FirstOrDefault(z => z.label != null && z.label.StartsWith("Еда (бот)"));
+        }
+
+        /// <summary>Крытый склад для снаряжения, тканей, произведённых товаров и прочих вещей.</summary>
+        public static Zone_Stockpile EnsureSheltered(Map map)
+        {
+            if (map == null) return null;
+            List<Zone_Stockpile> piles = Piles(map);
+            Zone_Stockpile zone = piles.FirstOrDefault(z => z.label != null && z.label.StartsWith("Вещи (бот)"));
+            if (zone != null) return zone;
+
+            IntVec3 anchor = Infrastructure.Anchor(map);
+            List<IntVec3> cells = PickCells(map, anchor, 20f, 16, true);
+            if (cells.Count < 4) return null;
+
+            zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+            map.zoneManager.RegisterZone(zone);
+            for (int i = 0; i < cells.Count; i++) zone.AddCell(cells[i]);
+            zone.label = "Вещи (бот)";
+            zone.settings.Priority = StoragePriority.Critical;
+            zone.settings.filter.SetAllow(ThingCategoryDefOf.Foods, false);
+            Mind.Think("хранение", "Создал крытый склад для вещей на " + cells.Count
+                + " клеток (приоритет Critical): снаряжение и товары не будут ветшать под дождём.");
+            return zone;
+        }
+
+        public static string StatusLine(Map map)
+        {
+            if (map == null) return "Склады: карта не загружена.";
+            List<Zone_Stockpile> piles = Piles(map);
+            Zone_Stockpile food = FoodZone(map);
+            Zone_Stockpile goods = piles.FirstOrDefault(z => z.label != null && z.label.StartsWith("Вещи (бот)"));
+            int foodCells = food != null ? food.cells.Count : 0;
+            int goodCells = goods != null ? goods.cells.Count : 0;
+            return "Склады: зон " + piles.Count + ", еда " + foodCells + " кл."
+                + (food != null && food.cells.Count > 0 ? " (t° " + Mathf.RoundToInt(food.cells.First().GetTemperature(map)) + ")" : "")
+                + ", крытые вещи " + goodCells + " кл.";
         }
 
         // ------------------------------------------------------------ проверка порчи

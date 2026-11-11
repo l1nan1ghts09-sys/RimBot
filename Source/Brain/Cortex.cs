@@ -154,6 +154,11 @@ namespace RimWorldBot.TradeEmpire
             }
             if (world == null) return;
 
+            // Порча еды, ветшание вещей и ванильные механики — в обоих режимах.
+            T.Safe("FoodSafety", () => FoodSafety.Run(map, tick));
+            T.Safe("Deterioration", () => Deterioration.Run(map, tick));
+            T.Safe("Mechanics", () => Mechanics.Run(map, tick));
+
             // ---- упрощённый режим: только антикризисные модули ----
             if (!s.deepBrain)
             {
